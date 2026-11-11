@@ -1,0 +1,31 @@
+; Energy minimisation (steepest descent), restrained protein heavy atoms + lipid head z
+; SLC35A2 in POPC:POPE:CHL 40:40:20 | amber14sb + TIP3P + Lipid21 | GROMACS 2026
+
+define                   = -DPOSRES -DPOSRES_FC_BB=4000.0 -DPOSRES_FC_SC=2000.0 -DPOSRES_LIPID -DPOSRES_FC_LIPID=1000.0
+integrator               = steep
+emtol                    = 1000.0
+emstep                   = 0.01
+nsteps                   = 50000
+nstenergy                = 500
+nstlog                   = 500
+
+; ---- Non-bonded: Amber ff14SB / Lipid21 conventions ------------------------
+; 1.0 nm LJ cut-off (Potential-shift only shifts the energy; forces are those of
+; Amber's plain truncation), PME with 1.0 nm real-space cut-off.
+; NO long-range dispersion correction.
+cutoff-scheme            = Verlet
+nstlist                  = 20
+pbc                      = xyz
+verlet-buffer-tolerance  = 0.005
+coulombtype              = PME
+rcoulomb                 = 1.0
+vdwtype                  = Cut-off
+vdw-modifier             = Potential-shift
+rvdw                     = 1.0
+DispCorr                 = no
+fourierspacing           = 0.12
+pme-order                = 4
+ewald-rtol               = 1e-5
+
+; ---- No constraints during EM (water stays rigid via SETTLE)
+constraints              = none

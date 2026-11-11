@@ -1,0 +1,257 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/docking-viewer"
+    },
+    {
+      "path": "./apps/mesoscale-explorer"
+    },
+    {
+      "path": "./apps/mvs-stories"
+    },
+    {
+      "path": "./apps/viewer"
+    },
+    {
+      "path": "./apps/md-contacts"
+    },
+    {
+      "path": "./packages/extensions/md-contacts"
+    },
+    {
+      "path": "./apps/prism-viewer"
+    },
+    {
+      "path": "./cli/chem-comp-dict"
+    },
+    {
+      "path": "./cli/cif2bcif"
+    },
+    {
+      "path": "./cli/cifschema"
+    },
+    {
+      "path": "./cli/lipid-params"
+    },
+    {
+      "path": "./cli/mvs-render"
+    },
+    {
+      "path": "./packages/mvs/builder"
+    },
+    {
+      "path": "./cli/state-docs"
+    },
+    {
+      "path": "./cli/structure-info"
+    },
+    {
+      "path": "./cli/syminfo"
+    },
+    {
+      "path": "./examples/alpha-orbitals"
+    },
+    {
+      "path": "./examples/alphafolddb-pae"
+    },
+    {
+      "path": "./examples/basic-wrapper"
+    },
+    {
+      "path": "./examples/domain-annotation-server"
+    },
+    {
+      "path": "./examples/glb-export"
+    },
+    {
+      "path": "./examples/ihm-restraints"
+    },
+    {
+      "path": "./examples/image-renderer"
+    },
+    {
+      "path": "./examples/interactions"
+    },
+    {
+      "path": "./examples/ligand-editor"
+    },
+    {
+      "path": "./examples/lighting"
+    },
+    {
+      "path": "./examples/bond-providers"
+    },
+    {
+      "path": "./examples/minimal-prism-viewer"
+    },
+    {
+      "path": "./examples/mvs-stories"
+    },
+    {
+      "path": "./examples/proteopedia-wrapper"
+    },
+    {
+      "path": "./examples/react"
+    },
+    {
+      "path": "./examples/slim-plugin"
+    },
+    {
+      "path": "./examples/standalone"
+    },
+    {
+      "path": "./examples/volume-tools"
+    },
+    {
+      "path": "./packages/extensions/alpha-orbitals"
+    },
+    {
+      "path": "./packages/extensions/anvil"
+    },
+    {
+      "path": "./packages/extensions/assembly-symmetry"
+    },
+    {
+      "path": "./packages/extensions/backgrounds"
+    },
+    {
+      "path": "./packages/extensions/debug-helpers"
+    },
+    {
+      "path": "./packages/extensions/dnatco"
+    },
+    {
+      "path": "./packages/extensions/g3d"
+    },
+    {
+      "path": "./packages/extensions/geo-export"
+    },
+    {
+      "path": "./packages/extensions/interactions"
+    },
+    {
+      "path": "./packages/extensions/json-cif"
+    },
+    {
+      "path": "./packages/extensions/kinemage"
+    },
+    {
+      "path": "./packages/extensions/meshes"
+    },
+    {
+      "path": "./packages/extensions/command-language"
+    },
+    {
+      "path": "./packages/extensions/model-archive"
+    },
+    {
+      "path": "./packages/extensions/model-export"
+    },
+    {
+      "path": "./packages/extensions/video-export"
+    },
+    {
+      "path": "./packages/mvs/runtime"
+    },
+    {
+      "path": "./packages/extensions/pdbe"
+    },
+    {
+      "path": "./packages/extensions/plugin"
+    },
+    {
+      "path": "./packages/extensions/rcsb"
+    },
+    {
+      "path": "./packages/extensions/sb-ncbr"
+    },
+    {
+      "path": "./packages/extensions/volume-tools"
+    },
+    {
+      "path": "./packages/extensions/volumes-and-segmentations"
+    },
+    {
+      "path": "./packages/extensions/wwpdb"
+    },
+    {
+      "path": "./packages/extensions/zenodo"
+    },
+    {
+      "path": "./packages/graphics"
+    },
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/io"
+    },
+    {
+      "path": "./packages/model"
+    },
+    {
+      "path": "./packages/plugin/core"
+    },
+    {
+      "path": "./packages/plugin/ui"
+    },
+    {
+      "path": "./packages/ai"
+    },
+    {
+      "path": "./packages/prism/ui"
+    },
+    {
+      "path": "./packages/prism/assistant"
+    },
+    {
+      "path": "./packages/prism/stories"
+    },
+    {
+      "path": "./packages/prism/viewer"
+    },
+    {
+      "path": "./packages/plugin/headless"
+    },
+    {
+      "path": "./perf-tests"
+    },
+    {
+      "path": "./test-harness"
+    },
+    {
+      "path": "./servers/common"
+    },
+    {
+      "path": "./servers/membrane-orientation"
+    },
+    {
+      "path": "./servers/model"
+    },
+    {
+      "path": "./servers/plugin-state"
+    },
+    {
+      "path": "./servers/volume"
+    },
+    {
+      "path": "./tests"
+    },
+    {
+      "path": "./packages/extensions/volseg-api"
+    },
+    {
+      "path": "./packages/query-language"
+    },
+    {
+      "path": "./packages/sequences/core"
+    },
+    {
+      "path": "./packages/sequences/viewer"
+    },
+    {
+      "path": "./packages/sequences/nightingale"
+    }
+  ]
+}

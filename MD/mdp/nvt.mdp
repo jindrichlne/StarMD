@@ -1,0 +1,61 @@
+; NVT equilibration, 250 ps, dt = 1 fs, strong restraints, new velocities
+; SLC35A2 in POPC:POPE:CHL 40:40:20 | amber14sb + TIP3P + Lipid21 | GROMACS 2026
+
+define                   = -DPOSRES -DPOSRES_FC_BB=4000.0 -DPOSRES_FC_SC=2000.0 -DPOSRES_LIPID -DPOSRES_FC_LIPID=1000.0
+integrator               = md
+dt                       = 0.001
+nsteps                   = 250000
+continuation             = no
+gen-vel                  = yes
+gen-temp                 = 310
+gen-seed                 = -1
+ld-seed                  = -1
+
+; ---- Output (whole system is written to the compressed trajectory) --------
+nstxout                  = 0
+nstvout                  = 0
+nstfout                  = 0
+nstxout-compressed       = 10000
+compressed-x-grps        = System
+compressed-x-precision   = 1000
+nstenergy                = 5000
+nstcalcenergy            = 100
+nstlog                   = 5000
+
+; ---- Non-bonded: Amber ff14SB / Lipid21 conventions ------------------------
+; 1.0 nm LJ cut-off (Potential-shift only shifts the energy; forces are those of
+; Amber's plain truncation), PME with 1.0 nm real-space cut-off.
+; NO long-range dispersion correction.
+cutoff-scheme            = Verlet
+nstlist                  = 20
+pbc                      = xyz
+verlet-buffer-tolerance  = 0.005
+coulombtype              = PME
+rcoulomb                 = 1.0
+vdwtype                  = Cut-off
+vdw-modifier             = Potential-shift
+rvdw                     = 1.0
+DispCorr                 = no
+fourierspacing           = 0.12
+pme-order                = 4
+ewald-rtol               = 1e-5
+
+; ---- Constraints (Amber SHAKE-equivalent: bonds to H; water rigid via SETTLE)
+constraints              = h-bonds
+constraint-algorithm     = LINCS
+lincs-order              = 4
+lincs-iter               = 1
+
+; ---- Temperature coupling --------------------------------------------------
+tcoupl                   = V-rescale
+tc-grps                  = SOLU MEMB SOLV
+tau-t                    = 1.0  1.0  1.0
+ref-t                    = 310  310  310
+
+; ---- Centre-of-mass motion removal: protein+bilayer and solvent separately
+comm-mode                = Linear
+comm-grps                = SOLU_MEMB SOLV
+nstcomm                  = 100
+
+; ---- No pressure coupling (NVT) --------------------------------------------
+pcoupl                   = no

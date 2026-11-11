@@ -1,0 +1,62 @@
+; SLC35A2 (res 29-341, ACE/NME caps) in POPC:POPE:CHL 40:40:20 bilayer, TIP3P, 0.15 M NaCl
+; protein: amber14sb.ff (GROMACS 2026 built-in ff14SB port)
+; lipids:  AMBER Lipid21 GROMACS port (../lipid21.ff), added with lipid21_params.itp
+; water/ions: TIP3P + Joung-Cheatham ions from amber14sb.ff
+
+; default restraint force constants (overridden by -D... in the mdp 'define')
+#ifndef POSRES_FC_BB
+#define POSRES_FC_BB 1000.0
+#endif
+#ifndef POSRES_FC_SC
+#define POSRES_FC_SC 1000.0
+#endif
+#ifndef POSRES_FC_LIPID
+#define POSRES_FC_LIPID 1000.0
+#endif
+
+#include "amber14sb.ff/forcefield.itp"
+#include "../lipid21.ff/lipid21_params.itp"
+
+#include "protein.itp"
+#ifdef POSRES
+#include "posre_protein.itp"
+#endif
+
+#include "../lipid21.ff/POPC.itp"
+#ifdef POSRES_LIPID
+; z-only restraint on P31 (PC) to keep the leaflets flat during equilibration
+[ position_restraints ]
+;  ai  funct  fcx  fcy  fcz
+    59    1     0    0   POSRES_FC_LIPID
+#endif
+
+#include "../lipid21.ff/POPE.itp"
+#ifdef POSRES_LIPID
+; z-only restraint on P31 (PE) to keep the leaflets flat during equilibration
+[ position_restraints ]
+;  ai  funct  fcx  fcy  fcz
+    59    1     0    0   POSRES_FC_LIPID
+#endif
+
+#include "../lipid21.ff/CHL.itp"
+#ifdef POSRES_LIPID
+; z-only restraint on O1 (CHL) to keep the leaflets flat during equilibration
+[ position_restraints ]
+;  ai  funct  fcx  fcy  fcz
+    73    1     0    0   POSRES_FC_LIPID
+#endif
+
+#include "amber14sb.ff/tip3p.itp"
+#include "amber14sb.ff/ions_tip3p.itp"
+
+[ system ]
+SLC35A2 in POPC:POPE:CHL 40:40:20 bilayer, TIP3P, 0.15 M NaCl
+
+[ molecules ]
+Protein           1
+POPC            159
+POPE            159
+CHL              79
+SOL           18213
+NA               49
+CL               62

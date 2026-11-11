@@ -1,0 +1,41 @@
+# Tool caches, pnpm, Foldseek, GROMACS builds (see scripts/env.sh)
+/.tools/
+# GROMACS output cache of the app (rebuilt on demand)
+/md-contacts-work/
+.DS_Store
+node_modules/
+lib/
+build/
+*.tsbuildinfo
+
+# molstar/: only the MD contacts code and the three upstream files it changes are tracked;
+# setup.sh downloads the rest of Mol* at the pinned commit
+/molstar/*
+!/molstar/apps/
+/molstar/apps/*
+!/molstar/apps/md-contacts/
+!/molstar/packages/
+/molstar/packages/*
+!/molstar/packages/extensions/
+/molstar/packages/extensions/*
+!/molstar/packages/extensions/md-contacts/
+!/molstar/scripts/
+/molstar/scripts/*
+!/molstar/scripts/workspace/
+/molstar/scripts/workspace/*
+!/molstar/scripts/workspace/inventory.json
+!/molstar/tsconfig.json
+!/molstar/pnpm-lock.yaml
+
+# MD/: inputs and scripts are tracked, simulation runs and GROMACS backups are not
+/MD/state*/00_build/
+/MD/state*/01_min/
+/MD/state*/rep*/
+/MD/*.xvg
+/MD/*.log
+\#*#
+*.trr
+*.xtc
+*.tpr
+*.edr
+*.cpt

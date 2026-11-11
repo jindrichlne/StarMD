@@ -1,0 +1,53 @@
+{
+  "name": "@molstar/md-contacts-app",
+  "version": "6.0.0-dev.0",
+  "private": true,
+  "type": "module",
+  "description": "Mol* MD contacts: contact maps, stability and conformers of GROMACS simulations",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "exports": {
+    ".": {
+      "molstar-src": "./src/index.tsx",
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src",
+    "server",
+    "!**/_test/**"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/esbuild/app.mjs apps/md-contacts --prd",
+    "typecheck": "tsc -b",
+    "dev": "node ../../scripts/esbuild/app.mjs apps/md-contacts --dev",
+    "serve": "node server/server.mjs"
+  },
+  "dependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "tslib": "catalog:",
+    "@molstar/viewer": "workspace:*",
+    "@molstar/md-contacts-extension": "workspace:*",
+    "@molstar/plugin-ui": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "@types/node": "catalog:",
+    "@types/webxr": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "peerDependencies": {
+    "react-dom": ">=16.14.0"
+  },
+  "molstar": {
+    "entry": "src/index.tsx",
+    "filename": "index.js",
+    "globalName": "molstarMdContacts"
+  }
+}

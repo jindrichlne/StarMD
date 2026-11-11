@@ -1,0 +1,16 @@
+min_sc1: Steepest Descents converged to Fmax < 1000 in 1417 steps
+Potential Energy  =  7.8185069e+05
+Maximum force     =  8.7171490e+02 on atom 4129
+min_sc2: Steepest Descents converged to Fmax < 1000 in 1839 steps
+Potential Energy  = -9.9671088e+05
+Maximum force     =  9.7430096e+02 on atom 4565
+min: Steepest Descents converged to Fmax < 1000 in 581 steps
+Potential Energy  = -1.0836145e+06
+Maximum force     =  8.3971777e+02 on atom 2704
+rings checked: 360; pierced: 0
+sp3 centres checked: 1872; inverted: 0
+oleoyl double bonds checked: 310; not cis: 0
+OK
+rep1: seed 2001, nvt.tpr ready
+rep2: seed 2002, nvt.tpr ready
+rep3: seed 2003, nvt.tpr ready

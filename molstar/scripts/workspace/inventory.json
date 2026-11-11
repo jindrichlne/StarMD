@@ -1,0 +1,544 @@
+{
+  "packages": [
+    {
+      "name": "@molstar/docking-viewer",
+      "path": "apps/docking-viewer",
+      "kind": "app",
+      "private": true
+    },
+    {
+      "name": "@molstar/docs",
+      "path": "apps/docs",
+      "kind": "docs",
+      "private": true
+    },
+    {
+      "name": "@molstar/mesoscale-explorer",
+      "path": "apps/mesoscale-explorer",
+      "kind": "app",
+      "private": true
+    },
+    {
+      "name": "@molstar/mvs-stories",
+      "path": "apps/mvs-stories",
+      "kind": "app",
+      "private": true
+    },
+    {
+      "name": "@molstar/viewer",
+      "path": "apps/viewer",
+      "kind": "app",
+      "private": false
+    },
+    {
+      "name": "@molstar/prism-viewer-app",
+      "path": "apps/prism-viewer",
+      "kind": "app",
+      "private": true
+    },
+    {
+      "name": "@molstar/chem-comp-dict-cli",
+      "path": "cli/chem-comp-dict",
+      "kind": "cli",
+      "private": true
+    },
+    {
+      "name": "@molstar/cif2bcif-cli",
+      "path": "cli/cif2bcif",
+      "kind": "cli",
+      "private": false
+    },
+    {
+      "name": "@molstar/cifschema-cli",
+      "path": "cli/cifschema",
+      "kind": "cli",
+      "private": false
+    },
+    {
+      "name": "@molstar/lipid-params-cli",
+      "path": "cli/lipid-params",
+      "kind": "cli",
+      "private": true
+    },
+    {
+      "name": "@molstar/mvs-render-cli",
+      "path": "cli/mvs-render",
+      "kind": "cli",
+      "private": false
+    },
+    {
+      "name": "@molstar/mvs-builder",
+      "path": "packages/mvs/builder",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/state-docs-cli",
+      "path": "cli/state-docs",
+      "kind": "cli",
+      "private": true
+    },
+    {
+      "name": "@molstar/structure-info-cli",
+      "path": "cli/structure-info",
+      "kind": "cli",
+      "private": true
+    },
+    {
+      "name": "@molstar/syminfo-cli",
+      "path": "cli/syminfo",
+      "kind": "cli",
+      "private": true
+    },
+    {
+      "name": "@molstar/alpha-orbitals-example",
+      "path": "examples/alpha-orbitals",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/alphafolddb-pae-example",
+      "path": "examples/alphafolddb-pae",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/basic-wrapper-example",
+      "path": "examples/basic-wrapper",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/domain-annotation-server-example",
+      "path": "examples/domain-annotation-server",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/glb-export-example",
+      "path": "examples/glb-export",
+      "kind": "node-example",
+      "private": true
+    },
+    {
+      "name": "@molstar/ihm-restraints-example",
+      "path": "examples/ihm-restraints",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/image-renderer-example",
+      "path": "examples/image-renderer",
+      "kind": "node-example",
+      "private": true
+    },
+    {
+      "name": "@molstar/interactions-example",
+      "path": "examples/interactions",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/ligand-editor-example",
+      "path": "examples/ligand-editor",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/lighting-example",
+      "path": "examples/lighting",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/bond-providers-example",
+      "path": "examples/bond-providers",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/minimal-prism-viewer-example",
+      "path": "examples/minimal-prism-viewer",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/mvs-stories-example",
+      "path": "examples/mvs-stories",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/proteopedia-wrapper-example",
+      "path": "examples/proteopedia-wrapper",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/react-example",
+      "path": "examples/react",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/slim-plugin-example",
+      "path": "examples/slim-plugin",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/examples-standalone",
+      "path": "examples/standalone",
+      "kind": "tests",
+      "private": true
+    },
+    {
+      "name": "@molstar/volume-tools-example",
+      "path": "examples/volume-tools",
+      "kind": "example",
+      "private": true
+    },
+    {
+      "name": "@molstar/alpha-orbitals-extension",
+      "path": "packages/extensions/alpha-orbitals",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/anvil-extension",
+      "path": "packages/extensions/anvil",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/assembly-symmetry-extension",
+      "path": "packages/extensions/assembly-symmetry",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/backgrounds-extension",
+      "path": "packages/extensions/backgrounds",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/debug-helpers-extension",
+      "path": "packages/extensions/debug-helpers",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/dnatco-extension",
+      "path": "packages/extensions/dnatco",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/g3d-extension",
+      "path": "packages/extensions/g3d",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/geo-export-extension",
+      "path": "packages/extensions/geo-export",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/interactions-extension",
+      "path": "packages/extensions/interactions",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/json-cif-extension",
+      "path": "packages/extensions/json-cif",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/kinemage-extension",
+      "path": "packages/extensions/kinemage",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/meshes-extension",
+      "path": "packages/extensions/meshes",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/command-language-extension",
+      "path": "packages/extensions/command-language",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/model-archive-extension",
+      "path": "packages/extensions/model-archive",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/model-export-extension",
+      "path": "packages/extensions/model-export",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/video-export-extension",
+      "path": "packages/extensions/video-export",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/mvs",
+      "path": "packages/mvs/runtime",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/pdbe-extension",
+      "path": "packages/extensions/pdbe",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/plugin-extension",
+      "path": "packages/extensions/plugin",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/rcsb-extension",
+      "path": "packages/extensions/rcsb",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/sb-ncbr-extension",
+      "path": "packages/extensions/sb-ncbr",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/volume-tools-extension",
+      "path": "packages/extensions/volume-tools",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/volumes-and-segmentations-extension",
+      "path": "packages/extensions/volumes-and-segmentations",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/wwpdb-extension",
+      "path": "packages/extensions/wwpdb",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/zenodo-extension",
+      "path": "packages/extensions/zenodo",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/graphics",
+      "path": "packages/graphics",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/core",
+      "path": "packages/core",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/io",
+      "path": "packages/io",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/model",
+      "path": "packages/model",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/plugin",
+      "path": "packages/plugin/core",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/plugin-ui",
+      "path": "packages/plugin/ui",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/ai",
+      "path": "packages/ai",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/prism-ui",
+      "path": "packages/prism/ui",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/prism-assistant",
+      "path": "packages/prism/assistant",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/prism-stories",
+      "path": "packages/prism/stories",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/prism-viewer",
+      "path": "packages/prism/viewer",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/plugin-headless",
+      "path": "packages/plugin/headless",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/perf-tests",
+      "path": "perf-tests",
+      "kind": "tests",
+      "private": true
+    },
+    {
+      "name": "@molstar/test-harness",
+      "path": "test-harness",
+      "kind": "tests",
+      "private": true
+    },
+    {
+      "name": "@molstar/common-server",
+      "path": "servers/common",
+      "kind": "server",
+      "private": false
+    },
+    {
+      "name": "@molstar/membrane-orientation-server",
+      "path": "servers/membrane-orientation",
+      "kind": "server",
+      "private": false
+    },
+    {
+      "name": "@molstar/model-server",
+      "path": "servers/model",
+      "kind": "server",
+      "private": false
+    },
+    {
+      "name": "@molstar/plugin-state-server",
+      "path": "servers/plugin-state",
+      "kind": "server",
+      "private": false
+    },
+    {
+      "name": "@molstar/volume-server",
+      "path": "servers/volume",
+      "kind": "server",
+      "private": false
+    },
+    {
+      "name": "@molstar/tests",
+      "path": "tests",
+      "kind": "tests",
+      "private": true
+    },
+    {
+      "name": "molstar",
+      "path": "distributions/molstar",
+      "kind": "distribution",
+      "private": false
+    },
+    {
+      "name": "@molstar/smoke",
+      "path": "smoke",
+      "kind": "smoke",
+      "private": true
+    },
+    {
+      "name": "@molstar/storybook",
+      "path": "storybook",
+      "kind": "storybook",
+      "private": true
+    },
+    {
+      "name": "@molstar/volseg-api-extension",
+      "path": "packages/extensions/volseg-api",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/query-language",
+      "path": "packages/query-language",
+      "kind": "library",
+      "private": false
+    },
+    {
+      "name": "@molstar/seq-core",
+      "path": "packages/sequences/core",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/seq-viewer",
+      "path": "packages/sequences/viewer",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/seq-nightingale",
+      "path": "packages/sequences/nightingale",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/seq-scripts",
+      "path": "packages/sequences/scripts",
+      "kind": "library",
+      "private": true
+    },
+    {
+      "name": "@molstar/seq-storybook",
+      "path": "packages/sequences/storybook",
+      "kind": "storybook",
+      "private": true
+    },
+    {
+      "name": "@molstar/md-contacts-extension",
+      "path": "packages/extensions/md-contacts",
+      "kind": "extension",
+      "private": false
+    },
+    {
+      "name": "@molstar/md-contacts-app",
+      "path": "apps/md-contacts",
+      "kind": "app",
+      "private": true
+    }
+  ]
+}
