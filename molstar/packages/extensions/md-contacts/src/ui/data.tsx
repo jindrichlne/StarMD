@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FoundSimulation, Job, MdServer, ProcessParams, ScanResult, ServerInfo } from '../server-api.js';
 import type { MdContactsSession, Simulation, SimulationSource } from '../session.js';
 import { parseXpm } from '../xpm.js';
-import { bytes, ns, shortGroup, simColor, useSubject } from './common.js';
+import { bytes, Help, ns, Sections, shortGroup, simColor, useSection, useSubject } from './common.js';
 import { VerdictBadge } from './stability.js';
 
 interface RowState {
@@ -29,6 +29,7 @@ export function DataTab({ session, server }: { session: MdContactsSession; serve
   const settings = useSubject(session.settings);
   useSubject(session.revision);
 
+  const [section, setSection] = useSection('data', ['find', 'loaded'] as const);
   const [info, setInfo] = useState<ServerInfo | undefined>();
   const [serverError, setServerError] = useState('');
   const [dir, setDir] = useState('');
@@ -267,7 +268,16 @@ export function DataTab({ session, server }: { session: MdContactsSession; serve
 
   return (
     <div className="mdc-tab">
-      {server && (
+      <Sections
+        label="Data sections"
+        options={[
+          ['find', 'Add simulations'],
+          ['loaded', `Loaded (${sims.length}) and settings`],
+        ]}
+        value={section}
+        onChange={setSection}
+      />
+      {section === 'find' && server && (
         <div className="mdc-card">
           <div className="mdc-card-head">
             <b>Simulations on this computer</b>
@@ -475,83 +485,87 @@ export function DataTab({ session, server }: { session: MdContactsSession; serve
                   </button>
                 </div>
               )}
-              <div className="mdc-note">
+              <Help title="What Prepare does">
                 "Prepare" runs <code>gmx trjconv</code> (group only, molecules whole, centred, fitted, thinned), then{' '}
                 <code>gmx mdmat</code> and <code>gmx xpm2ps</code>. Results are cached in <code>{info.work}</code>; the
                 originals are never changed.
-              </div>
+              </Help>
             </>
           )}
         </div>
       )}
 
-      <div
-        className={`mdc-card mdc-drop${dragging ? ' mdc-drop-over' : ''}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          void handleFiles([...e.dataTransfer.files]);
-        }}
-      >
-        <div className="mdc-card-head">
-          <b>Already prepared files</b>
-          <label className="mdc-btn">
-            Choose files
-            <input
-              type="file"
-              multiple
-              accept=".pdb,.gro,.xtc,.trr,.dcd,.xpm,.txt,.fasta,.3di"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                void handleFiles([...(e.target.files ?? [])]);
-                e.target.value = '';
-              }}
-            />
-          </label>
+      {section === 'find' && (
+        <div
+          className={`mdc-card mdc-drop${dragging ? ' mdc-drop-over' : ''}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            void handleFiles([...e.dataTransfer.files]);
+          }}
+        >
+          <div className="mdc-card-head">
+            <b>Already prepared files</b>
+            <label className="mdc-btn">
+              Choose files
+              <input
+                type="file"
+                multiple
+                accept=".pdb,.gro,.xtc,.trr,.dcd,.xpm,.txt,.fasta,.3di"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  void handleFiles([...(e.target.files ?? [])]);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+          <div className="mdc-muted">
+            Drop trajectories (.xtc, .trr, .dcd) with their structure (.pdb or .gro of the same atoms; same file name,
+            or one structure for all), and <code>gmx mdmat</code> maps (.xpm) for the simulation shown in 3D. Nothing
+            leaves your browser.
+          </div>
+          {dropMessage && <pre className="mdc-drop-message">{dropMessage}</pre>}
         </div>
-        <div className="mdc-muted">
-          Drop trajectories (.xtc, .trr, .dcd) with their structure (.pdb or .gro of the same atoms; same file name, or
-          one structure for all), and <code>gmx mdmat</code> maps (.xpm) for the simulation shown in 3D. Nothing leaves
-          your browser.
-        </div>
-        {dropMessage && <pre className="mdc-drop-message">{dropMessage}</pre>}
-      </div>
+      )}
 
-      <div className="mdc-card">
-        <div className="mdc-card-head">
-          <b>Analysis settings</b>
+      {section === 'loaded' && (
+        <div className="mdc-card">
+          <div className="mdc-card-head">
+            <b>Analysis settings</b>
+          </div>
+          <div className="mdc-controls">
+            <label title="Left out of the mean maps, the stability measures and the conformers">
+              <span>Skip at the start (ns)</span>
+              <input type="number" min={0} step={1} value={skipNs} onChange={(e) => setSkipNs(e.target.value)} />
+            </label>
+            <label title="Two residues are in contact when their Cα atoms are closer than this">
+              <span>Contact cut-off (nm)</span>
+              <input type="number" min={0.3} step={0.05} value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
+            </label>
+            <button
+              type="button"
+              className="mdc-btn"
+              disabled={Number(skipNs) * 1000 === settings.skipPs && Number(cutoff) === settings.cutoff}
+              onClick={() =>
+                session.updateSettings({
+                  skipPs: Math.max(0, Number(skipNs) || 0) * 1000,
+                  cutoff: Math.max(0.1, Number(cutoff) || 0.8),
+                })
+              }
+            >
+              Apply
+            </button>
+          </div>
         </div>
-        <div className="mdc-controls">
-          <label title="Left out of the mean maps, the stability measures and the conformers">
-            <span>Skip at the start (ns)</span>
-            <input type="number" min={0} step={1} value={skipNs} onChange={(e) => setSkipNs(e.target.value)} />
-          </label>
-          <label title="Two residues are in contact when their Cα atoms are closer than this">
-            <span>Contact cut-off (nm)</span>
-            <input type="number" min={0.3} step={0.05} value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
-          </label>
-          <button
-            type="button"
-            className="mdc-btn"
-            disabled={Number(skipNs) * 1000 === settings.skipPs && Number(cutoff) === settings.cutoff}
-            onClick={() =>
-              session.updateSettings({
-                skipPs: Math.max(0, Number(skipNs) || 0) * 1000,
-                cutoff: Math.max(0.1, Number(cutoff) || 0.8),
-              })
-            }
-          >
-            Apply
-          </button>
-        </div>
-      </div>
+      )}
 
-      {sims.length > 0 && (
+      {section === 'loaded' && sims.length > 0 && (
         <div className="mdc-card">
           <div className="mdc-card-head">
             <b>Loaded</b>

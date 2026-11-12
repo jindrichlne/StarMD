@@ -32,20 +32,27 @@ changes, rebuild with `REBUILD=1 ./run-md-contacts.sh`, or rerun `./setup.sh` if
 ```bash
 ./run-md-contacts.sh            # simulations under ./MD, then open http://localhost:8765/
 ./run-md-contacts.sh /path/to/simulations --port 9000 --gmx /path/to/gmx
+./run-md-contacts.sh --keep-cache   # keep the processed trajectories for the next run
 ```
 
-Everything is kept in this folder: tool caches in `.tools/`, GROMACS outputs in `md-contacts-work/` (safe to delete; it
-is rebuilt on demand). The simulation files are only read.
+Everything is kept in this folder: tool caches in `.tools/`, GROMACS outputs in `md-contacts-work/`. That cache is
+deleted when the last browser tab of the app is closed (15 s later, so a reload keeps it) and when the server stops
+(Ctrl+C or closing its terminal); start with `--keep-cache` to keep it, so the same
+simulations load instantly next time. The simulation files are only read.
 
 `MD/` holds the inputs of the SLC35A2 example (two states, membrane systems, see `MD/README.md`); the trajectories
 themselves (~12 GB), the minimisation and the replica folders are not in the repository: recreate them with
 `MD/scripts/build_state.sh`, run them with `MD/run_all.sh` (or `MD/submit_lumi.sh` on LUMI), or point the server at
 your own simulations.
 
+Each tab is split into sections (the row of buttons under the timeline), so one view fits one screen; longer
+explanations are folded behind "How to read this" links.
+
 1. **Data**: the server lists every trajectory under the folder, grouped by system (`state1/rep1`, `rep2`, ... are
    replicas of one group). Production runs are pre-selected, equilibration stages hidden behind a checkbox. "Prepare &
    load selected" runs GROMACS and loads the results; 100 ns of a 100 000-atom system takes about 10 s to extract and
    40 s for `gmx mdmat`, which continues in the background while you already look at the trajectory.
+
 2. **Contacts**: the Cα distance map, a different quantity in each triangle (this frame, mean, std, time in contact,
    frame − mean, frame − start, `gmx mdmat` mean, disagreement between replicas, difference to another state). It
    follows the frame slider and playback. Hover highlights the residue pair in 3D; a click measures it in 3D and plots
@@ -53,12 +60,20 @@ your own simulations.
    Below the map, the **sequence** is shaded by the contacts of each residue in the frame shown (or by how many it
    gained or lost since the start); click a residue to pin it and see its partners along the sequence (shade: share of
    time in contact, outline: touching now), then click a partner to follow that pair.
-3. **Stability**: per replica a verdict (holds / drifting / departed / too short) from the superposition-free dRMSD
+3. **Stability**: per replica a verdict (holds / moved and settled / drifting / departed / too short; "still moving" and "far from
+the start" are judged separately, so a run that moves early and then goes flat is not reported as holding) from the superposition-free dRMSD
    to the start and the share of starting contacts kept, with RMSD, radius of gyration and per-residue RMSF; per group
    whether the replicas agree; with two or more states loaded, which state every frame is closest to.
    A checkbox colours the 3D structure by RMSF (pale: rigid, dark orange: flexible; one scale for all replicas).
-4. **Conformers**: frames are fingerprinted by their distance map, clustered by dRMSD (average linkage) and assigned;
-   you get the number of conformers the merge heights support (one, when the motion is continuous), when each replica
+4. **Conformers**: frames are fingerprinted by their distance map (averaged over short stretches of the run, which
+   removes thermal noise), clustered by dRMSD (average linkage) and assigned. The automatic count breaks the tree
+   into small groups and joins the two closest ones again and again, until every pair left is two conformers: far
+   enough apart, with a gap between them (few frames in the middle compared with the groups themselves), and each
+   holding at least a fifth of one run's frames. "Far enough" is 2.25 times what the structure moves between
+   neighbouring stretches of a run, and at least 0.05 nm; "Scale of a conformer" changes it, because proteins have
+   sub-states at every scale. Groups without a gap are one continuous motion and stay one conformer; a much smaller
+   one is reported as frames in transit. The result says how many conformers a finer and a coarser scale would give:
+   when these differ, the number is a matter of scale and not a property of the simulation. You also get when each replica
    visits which, a 2D map of the frames, the medoid frames, and for any two conformers the difference map and the
    ranked switch pairs. Run it on one state or on all loaded simulations together.
 

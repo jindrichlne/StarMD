@@ -9,7 +9,7 @@ import { residueKey, residueLabel, separationMap, statsOfFrames, switchPairs, ty
 import { localSwitches } from '../threedi.js';
 import { seriesColor } from '../colors.js';
 import type { ConformerRun, MdContactsSession, Simulation } from '../session.js';
-import { ns, shortGroup, simColor, useSubject } from './common.js';
+import { Help, ns, Sections, shortGroup, simColor, useSection, useSubject } from './common.js';
 import { Heatmap } from './heatmap.js';
 import { Icicle } from './icicle.js';
 
@@ -160,6 +160,7 @@ export function ConformersTab({ session }: { session: MdContactsSession }) {
   const overlay = useSubject(session.overlay);
   const [scope, setScope] = useState<string>('');
   const [k, setK] = useState(0);
+  const [stepFactor, setStepFactor] = useState(2.25);
   const [perTraj, setPerTraj] = useState(150);
   const [error, setError] = useState('');
   const [a, setA] = useState(0);
@@ -177,7 +178,12 @@ export function ConformersTab({ session }: { session: MdContactsSession }) {
   const start = async () => {
     setError('');
     try {
-      await session.runConformers(scopeValue, { nClusters: k, framesPerTrajectory: perTraj, fingerprint: fp });
+      await session.runConformers(scopeValue, {
+        nClusters: k,
+        stepFactor,
+        framesPerTrajectory: perTraj,
+        fingerprint: fp,
+      });
       setA(0);
       setB(1);
       setBlocks([]);
@@ -264,6 +270,21 @@ export function ConformersTab({ session }: { session: MdContactsSession }) {
     return i >= 0 && j >= 0 ? { i, j } : undefined;
   }, [pair, run, fromActive]);
 
+  const sectionOptions = [
+    ['overview', 'Overview'],
+    ['tree', 'Tree'],
+    ['frames', 'Frame map'],
+    ...(nConf > 1 || picked
+      ? ([
+          ['diff', 'Difference map'],
+          ['switch', 'Switch residues'],
+        ] as const)
+      : []),
+  ] as const;
+  const [section, setSection] = useSection(
+    'conformers',
+    sectionOptions.map((o) => o[0]),
+  );
   if (!sims.length) return <div className="mdc-empty">Load a simulation in the Data tab to look for conformers.</div>;
 
   const total = run ? run.result.conformers.reduce((s, c) => s + c.size, 0) : 0;
@@ -295,6 +316,16 @@ export function ConformersTab({ session }: { session: MdContactsSession }) {
             ))}
           </select>
         </label>
+        {k === 0 && (
+          <label title="How different two groups of frames must be to count as two conformers, relative to how much the structure moves anyway between neighbouring stretches of a run. Proteins have sub-states at every scale: finer finds more of them.">
+            <span>Scale of a conformer</span>
+            <select value={stepFactor} onChange={(e) => setStepFactor(Number(e.target.value))}>
+              <option value={3}>coarse: big changes only</option>
+              <option value={2.25}>default</option>
+              <option value={1.75}>fine: also sub-states</option>
+            </select>
+          </label>
+        )}
         <label>
           <span>Frames clustered per replica</span>
           <select value={perTraj} onChange={(e) => setPerTraj(Number(e.target.value))}>
@@ -321,183 +352,232 @@ export function ConformersTab({ session }: { session: MdContactsSession }) {
       {error && <div className="mdc-error">{error}</div>}
       {!run && !error && (
         <div className="mdc-note">
-          Frames are fingerprinted by their Cα distance map, a sample is clustered by dRMSD (average linkage), and every
-          frame is then assigned to the nearest conformer. No superposition is involved, so rigid-body motion does not
-          count.
+          Frames are fingerprinted by their Cα distance map (averaged over short stretches, which removes thermal
+          noise), clustered by dRMSD, and every frame is then assigned to the nearest conformer. Automatic mode keeps a
+          split of the tree when the two groups are far enough apart, each hold enough frames and have a gap between
+          them. No superposition is involved, so rigid-body motion does not count.
         </div>
       )}
 
       {run && (
         <>
-          <div className="mdc-card">
-            <div className="mdc-card-head">
-              <b>
-                {nConf} conformer{nConf > 1 ? 's' : ''} in{' '}
-                {run.scope === '*' ? 'all simulations' : shortGroup(run.scope)}
-              </b>
-              {current !== undefined && current >= 0 && (
-                <span>
-                  frame in 3D: <span className="mdc-chip" style={{ background: confColor(current) }} />{' '}
-                  {confName(current)}
-                </span>
-              )}
-            </div>
-            <div className="mdc-reason">
-              Highest merges of the tree: {run.result.merges.map(fmtHeight).join('  ')} {unitLabel}.{' '}
-              {run.result.suggested === 1
-                ? 'They fall off gradually: one state with continuous motion, no clearly separate conformers.'
-                : `A gap after the ${run.result.suggested - 1 === 1 ? 'first' : `first ${run.result.suggested - 1}`} suggests ${run.result.suggested} separate conformers.`}
-              {run.result.options.nClusters > 0 && run.result.options.nClusters !== run.result.suggested
-                ? ` You asked for ${run.result.options.nClusters}: the extra splits cut a continuum, so read them as regions of one motion.`
-                : ''}
-            </div>
-            <table className="mdc-table">
-              <thead>
-                <tr>
-                  <th>Conformer</th>
-                  <th>Frames</th>
-                  {run.sims.map((s) => (
-                    <th key={s.id} title={s.id}>
-                      {simName(run, s)}
-                    </th>
-                  ))}
-                  <th title="Mean dRMSD of the members to the medoid">Spread</th>
-                  <th>Most typical frame</th>
-                </tr>
-              </thead>
-              <tbody>
-                {run.result.conformers.map((c) => {
-                  const ms = run.sims[c.medoid.traj];
-                  return (
-                    <tr key={c.id}>
-                      <td>
-                        <span className="mdc-chip" style={{ background: confColor(c.id) }} /> {confName(c.id)}
-                      </td>
-                      <td>
-                        {c.size} ({((c.size / Math.max(1, total)) * 100).toFixed(0)}%)
-                      </td>
-                      {c.perTrajectory.map((v, i) => (
-                        <td key={i}>
-                          {((v / Math.max(1, run.sims[i].data.nFrames - run.sims[i].stability.first)) * 100).toFixed(0)}
-                          %
-                        </td>
-                      ))}
-                      <td>{c.spread.toFixed(3)} nm</td>
-                      <td>
-                        <button type="button" className="mdc-btn" onClick={() => void session.show(ms, c.medoid.frame)}>
-                          {simName(run, ms)}, {ns(ms.data.times[c.medoid.frame], 1)} ns
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div className="mdc-row">
-              <button
-                type="button"
-                className={overlay ? 'mdc-btn' : 'mdc-btn mdc-btn-primary'}
-                disabled={!!busy}
-                onClick={() => void session.showConformers(!overlay)}
-              >
-                {overlay
-                  ? 'Back to the trajectory'
-                  : `Show ${nConf > 1 ? `all ${nConf} conformers` : 'the conformer'} superposed in 3D`}
-              </button>
-              {overlay && (
-                <span className="mdc-plot-legend">
-                  {overlay.map((o) => (
-                    <span key={o.conformer} title={`${simName(run, o.sim)}, ${ns(o.sim.data.times[o.frame], 1)} ns`}>
-                      <i style={{ background: confColor(o.conformer), height: 10 }} />
-                      {confName(o.conformer)}
-                      {o.conformer > 0 ? ` · ${o.rmsd.toFixed(2)} nm from C1` : ''}
-                    </span>
-                  ))}
-                </span>
-              )}
-            </div>
-            {overlay && (
-              <div className="mdc-note">
-                The most typical frame of every conformer, each in its colour, superposed on C1 over all aligned Cα
-                atoms (Cα RMSD after the fit shown above). The simulations are hidden meanwhile; moving the frame
-                slider, playing or picking a frame goes back to the trajectory.
-              </div>
-            )}
-            <div className="mdc-note">
-              Shares are of simulated frames, not populations: they depend on where the runs started and how long they
-              are.
-            </div>
-          </div>
-
-          <div className="mdc-card">
-            <div className="mdc-card-head">
-              <b>When each replica is in which conformer</b>
-              <span className="mdc-plot-legend">
-                {run.result.conformers.map((c) => (
-                  <span key={c.id}>
-                    <i style={{ background: confColor(c.id) }} />
-                    {confName(c.id)}
-                  </span>
-                ))}
+          <Sections label="Conformer sections" options={sectionOptions} value={section} onChange={setSection}>
+            {current !== undefined && current >= 0 && (
+              <span>
+                frame in 3D: <span className="mdc-chip" style={{ background: confColor(current) }} />{' '}
+                {confName(current)}
               </span>
-            </div>
-            <div className="mdc-note">
-              One row per replica, time left to right on a shared scale. Click to show that frame.
-            </div>
-            {run.sims.map((s, i) => (
-              <Strip
-                key={s.id}
-                run={run}
-                index={i}
-                sim={s}
-                longest={Math.max(...run.sims.map((x) => x.data.times[x.data.nFrames - 1] - x.data.times[0]))}
-                cursor={s === active ? frame : undefined}
-                onPick={(f) => void session.show(s, f)}
+            )}
+          </Sections>
+          {section === 'overview' && (
+            <>
+              <div className="mdc-card">
+                <div className="mdc-card-head">
+                  <b>
+                    {nConf} conformer{nConf > 1 ? 's' : ''} in{' '}
+                    {run.scope === '*' ? 'all simulations' : shortGroup(run.scope)}
+                  </b>
+                </div>
+                <div className="mdc-reason">
+                  {(() => {
+                    const r = run.result;
+                    const fmtSep = (v: number) => (unit === 'nm' ? `${v.toFixed(2)} nm` : `${(v * 100).toFixed(0)}%`);
+                    const pct = (v: number) => `${Math.round(v * 100)}%`;
+                    const apart = r.splits.filter((t) => t.outcome === 'apart');
+                    const joined = r.splits.filter((t) => t.outcome === 'joined' || t.outcome === 'transit');
+                    // sub-states: a gap, but closer than the scale
+                    const finer = r.splits.filter((t) => t.outcome === 'close' && t.dip <= r.options.maxDip);
+                    const scale = `${fmtSep(r.scale)} (${r.options.stepFactor}× the ${fmtSep(r.step)} the structure moves between neighbouring stretches of a run)`;
+                    const rule = `To count, two groups must be at least ${scale} apart, with few frames between them, and each must hold at least ${pct(r.options.minShare)} of one run's frames.`;
+                    const closest = apart[0];
+                    const weakest = apart.slice().sort((x, y) => y.dip - x.dip)[0];
+                    let found =
+                      r.suggested === 1
+                        ? `No separate conformers found at this scale. ${rule}`
+                        : `${r.suggested} separate conformers found. The two closest are ${fmtSep(closest.separation)} apart${unit === 'nm' ? ' (dRMSD)' : ' (residues with another 3Di letter)'}; the least clear gap has ${pct(weakest.dip)} as many frames in the middle as in the groups (${pct(r.options.maxDip)} allowed). ${rule}`;
+                    if (joined.length) {
+                      const widest = joined.slice().sort((x, y) => y.separation - x.separation)[0];
+                      found += ` ${joined.length} group${joined.length > 1 ? 's were' : ' was'} far enough from a neighbour (up to ${fmtSep(widest.separation)}) but frames fill the space between them: one continuous motion, not counted.`;
+                    }
+                    if (finer.length) {
+                      const widest = finer.slice().sort((x, y) => y.separation - x.separation)[0];
+                      found += ` Below this scale there are sub-states with a gap (up to ${fmtSep(widest.separation)} apart).`;
+                    }
+                    // how firm the number is
+                    const [fine, coarse] = r.nearby;
+                    found +=
+                      fine.count === r.suggested && coarse.count === r.suggested
+                        ? ` The number is the same at a finer (${fmtSep(fine.scale)}) and a coarser (${fmtSep(coarse.scale)}) scale.`
+                        : ` The number depends on the scale: ${fine.count} at ${fmtSep(fine.scale)}, ${coarse.count} at ${fmtSep(coarse.scale)}.`;
+                    const asked =
+                      r.options.nClusters > 0 && r.options.nClusters !== r.suggested
+                        ? r.options.nClusters > r.suggested
+                          ? ` You asked for ${r.options.nClusters}: the extra groups are closer than that scale, too small or have no gap, so read them as regions of one motion.`
+                          : ` You asked for ${r.options.nClusters}, so separate conformers are shown merged.`
+                        : '';
+                    const transit =
+                      !asked && r.transit > 0.005
+                        ? ` ${(r.transit * 100).toFixed(0)}% of the frames lie beside a conformer without a gap to it (typically on the way there from the start) and are shown with the nearest one.`
+                        : '';
+                    return found + transit + asked;
+                  })()}
+                </div>
+                <table className="mdc-table">
+                  <thead>
+                    <tr>
+                      <th>Conformer</th>
+                      <th>Frames</th>
+                      {run.sims.map((s) => (
+                        <th key={s.id} title={s.id}>
+                          {simName(run, s)}
+                        </th>
+                      ))}
+                      <th title="Mean dRMSD of the members to the medoid">Spread</th>
+                      <th>Most typical frame</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {run.result.conformers.map((c) => {
+                      const ms = run.sims[c.medoid.traj];
+                      return (
+                        <tr key={c.id}>
+                          <td>
+                            <span className="mdc-chip" style={{ background: confColor(c.id) }} /> {confName(c.id)}
+                          </td>
+                          <td>
+                            {c.size} ({((c.size / Math.max(1, total)) * 100).toFixed(0)}%)
+                          </td>
+                          {c.perTrajectory.map((v, i) => (
+                            <td key={i}>
+                              {(
+                                (v / Math.max(1, run.sims[i].data.nFrames - run.sims[i].stability.first)) *
+                                100
+                              ).toFixed(0)}
+                              %
+                            </td>
+                          ))}
+                          <td>{c.spread.toFixed(3)} nm</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="mdc-btn"
+                              onClick={() => void session.show(ms, c.medoid.frame)}
+                            >
+                              {simName(run, ms)}, {ns(ms.data.times[c.medoid.frame], 1)} ns
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <div className="mdc-row">
+                  <button
+                    type="button"
+                    className={overlay ? 'mdc-btn' : 'mdc-btn mdc-btn-primary'}
+                    disabled={!!busy}
+                    onClick={() => void session.showConformers(!overlay)}
+                  >
+                    {overlay
+                      ? 'Back to the trajectory'
+                      : `Show ${nConf > 1 ? `all ${nConf} conformers` : 'the conformer'} superposed in 3D`}
+                  </button>
+                  {overlay && (
+                    <span className="mdc-plot-legend">
+                      {overlay.map((o) => (
+                        <span
+                          key={o.conformer}
+                          title={`${simName(run, o.sim)}, ${ns(o.sim.data.times[o.frame], 1)} ns`}
+                        >
+                          <i style={{ background: confColor(o.conformer), height: 10 }} />
+                          {confName(o.conformer)}
+                          {o.conformer > 0 ? ` · ${o.rmsd.toFixed(2)} nm from C1` : ''}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </div>
+                <Help>
+                  Shares are of simulated frames, not populations: they depend on where the runs started and how long
+                  they are. The superposed view shows the most typical frame of every conformer, each in its colour,
+                  fitted on C1 over all aligned Cα atoms; the simulations are hidden meanwhile, and moving the frame
+                  slider, playing or picking a frame goes back to the trajectory.
+                </Help>
+              </div>
+
+              <div className="mdc-card">
+                <div className="mdc-card-head">
+                  <b title="One row per replica, time left to right on a shared scale. Click to show that frame.">
+                    When each replica is in which conformer
+                  </b>
+                  <span className="mdc-plot-legend">
+                    {run.result.conformers.map((c) => (
+                      <span key={c.id}>
+                        <i style={{ background: confColor(c.id) }} />
+                        {confName(c.id)}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+                {run.sims.map((s, i) => (
+                  <Strip
+                    key={s.id}
+                    run={run}
+                    index={i}
+                    sim={s}
+                    longest={Math.max(...run.sims.map((x) => x.data.times[x.data.nFrames - 1] - x.data.times[0]))}
+                    cursor={s === active ? frame : undefined}
+                    onPick={(f) => void session.show(s, f)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {section === 'tree' && (
+            <div className="mdc-card">
+              <div className="mdc-card-head">
+                <b>The clustering tree</b>
+                {blocks.length > 0 && (
+                  <button type="button" className="mdc-btn" onClick={() => setBlocks([])}>
+                    Clear picked blocks
+                  </button>
+                )}
+              </div>
+              <Icicle
+                tree={tree}
+                cutHeight={run.result.cutHeight}
+                format={fmtHeight}
+                unitLabel={unitLabel}
+                color={confColor}
+                selected={blocks}
+                total={run.result.sample.length}
+                describe={(n: TreeNode) =>
+                  n.perTrajectory
+                    .map((v, i) =>
+                      v ? `${simName(run, run.sims[i])} ${((v / n.members.length) * 100).toFixed(0)}%` : '',
+                    )
+                    .filter(Boolean)
+                    .join(', ')
+                }
+                onPick={(n: TreeNode) => {
+                  const m = run.result.sample[n.medoid].ref;
+                  void session.show(run.sims[m.traj], m.frame);
+                  setBlocks((old) => (old.includes(n.id) ? old.filter((x) => x !== n.id) : [...old, n.id].slice(-2)));
+                }}
               />
-            ))}
-          </div>
-
-          <div className="mdc-card">
-            <div className="mdc-card-head">
-              <b>The clustering tree</b>
-              {blocks.length > 0 && (
-                <button type="button" className="mdc-btn" onClick={() => setBlocks([])}>
-                  Clear picked blocks
-                </button>
-              )}
             </div>
-            <Icicle
-              tree={tree}
-              cutHeight={run.result.cutHeight}
-              format={fmtHeight}
-              unitLabel={unitLabel}
-              color={confColor}
-              selected={blocks}
-              total={run.result.sample.length}
-              describe={(n: TreeNode) =>
-                n.perTrajectory
-                  .map((v, i) =>
-                    v ? `${simName(run, run.sims[i])} ${((v / n.members.length) * 100).toFixed(0)}%` : '',
-                  )
-                  .filter(Boolean)
-                  .join(', ')
-              }
-              onPick={(n: TreeNode) => {
-                const m = run.result.sample[n.medoid].ref;
-                void session.show(run.sims[m.traj], m.frame);
-                setBlocks((old) => (old.includes(n.id) ? old.filter((x) => x !== n.id) : [...old, n.id].slice(-2)));
-              }}
-            />
-          </div>
-
-          <div className="mdc-card">
-            <div className="mdc-card-head">
-              <b>Map of the sampled frames</b>
+          )}
+          {section === 'frames' && (
+            <div className="mdc-card">
+              <div className="mdc-card-head">
+                <b>Map of the sampled frames</b>
+              </div>
+              <Scatter run={run} onPick={(t, f) => void session.show(run.sims[t], f)} />
             </div>
-            <Scatter run={run} onPick={(t, f) => void session.show(run.sims[t], f)} />
-          </div>
+          )}
 
-          {(nConf > 1 || picked) && (
+          {(section === 'diff' || section === 'switch') && (nConf > 1 || picked) && (
             <div className="mdc-card">
               <div className="mdc-card-head">
                 <b>{picked ? 'What tells the two picked blocks apart' : 'What tells two conformers apart'}</b>
@@ -522,138 +602,157 @@ export function ConformersTab({ session }: { session: MdContactsSession }) {
               </div>
               {compare ? (
                 <>
-                  <Heatmap
-                    n={compare.n}
-                    upper={{
-                      label: `Mean ${nameA} − mean ${nameB}`,
-                      unit: 'nm',
-                      values: compare.diff,
-                      scale: 'diverging',
-                      min: -compare.max,
-                      max: compare.max,
-                    }}
-                    lower={{
-                      label: 'Share of the variance between the two',
-                      unit: '',
-                      values: compare.sep,
-                      scale: 'share',
-                      min: 0,
-                      max: 1,
-                    }}
-                    label={label}
-                    tick={tick}
-                    selected={selected}
-                    marks={compare.pairs.slice(0, 8)}
-                    onHover={(p) => {
-                      if (!p) return session.highlight(undefined);
-                      const r = [toActive(p.i), toActive(p.j)].filter((x) => x >= 0);
-                      session.highlight(r);
-                    }}
-                    onSelect={(p) => {
-                      const i = toActive(p.i),
-                        j = toActive(p.j);
-                      if (i >= 0 && j >= 0) void session.selectPair({ i, j });
-                    }}
-                  />
-                  <div className="mdc-note">
-                    Blue: closer in {nameA}; red: closer in {nameB}. Rings mark the top switch pairs. Click a row to
-                    follow the pair in 3D and in the Contacts tab.
-                  </div>
-                  <table className="mdc-table">
-                    <thead>
-                      <tr>
-                        <th>Switch pair</th>
-                        <th>{nameA}</th>
-                        <th>{nameB}</th>
-                        <th>Change</th>
-                        <th title="Share of this distance's variance that is between the two conformers">
-                          Between share
-                        </th>
-                        <th title="In contact in one conformer and not in the other">Contact switch</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {compare.pairs.map((p) => (
-                        <tr
-                          key={`${p.i}-${p.j}`}
-                          className={selected && selected.i === p.i && selected.j === p.j ? 'mdc-active' : undefined}
-                          onClick={() => {
-                            const i = toActive(p.i),
-                              j = toActive(p.j);
-                            if (i >= 0 && j >= 0) {
-                              void session.selectPair({ i, j });
-                              session.focus([i, j]);
-                            }
-                          }}
-                          onMouseEnter={() => session.highlight([toActive(p.i), toActive(p.j)].filter((x) => x >= 0))}
-                          onMouseLeave={() => session.highlight(undefined)}
-                        >
-                          <td>
-                            {label(p.i)} – {label(p.j)}
-                          </td>
-                          <td>
-                            {p.meanA.toFixed(2)} ± {p.stdA.toFixed(2)}
-                          </td>
-                          <td>
-                            {p.meanB.toFixed(2)} ± {p.stdB.toFixed(2)}
-                          </td>
-                          <td>{p.delta.toFixed(2)} nm</td>
-                          <td>{p.betweenShare.toFixed(2)}</td>
-                          <td>{p.contactSwitch ? 'yes' : '–'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {local ? (
-                    <>
+                  {section === 'diff' && (
+                    <div className="mdc-col">
+                      <Heatmap
+                        n={compare.n}
+                        upper={{
+                          label: `Mean ${nameA} − mean ${nameB}`,
+                          unit: 'nm',
+                          values: compare.diff,
+                          scale: 'diverging',
+                          min: -compare.max,
+                          max: compare.max,
+                        }}
+                        lower={{
+                          label: 'Share of the variance between the two',
+                          unit: '',
+                          values: compare.sep,
+                          scale: 'share',
+                          min: 0,
+                          max: 1,
+                        }}
+                        label={label}
+                        tick={tick}
+                        selected={selected}
+                        marks={compare.pairs.slice(0, 8)}
+                        onHover={(p) => {
+                          if (!p) return session.highlight(undefined);
+                          const r = [toActive(p.i), toActive(p.j)].filter((x) => x >= 0);
+                          session.highlight(r);
+                        }}
+                        onSelect={(p) => {
+                          const i = toActive(p.i),
+                            j = toActive(p.j);
+                          if (i >= 0 && j >= 0) void session.selectPair({ i, j });
+                        }}
+                      />
                       <div className="mdc-note">
-                        <b>Local switch residues (3Di).</b> Residues whose structural letter differs between the two: a
-                        change of the local fold, where the pairs above also catch rigid parts moving against each
-                        other. Divergence 1 means no letter in common.
+                        Blue: closer in {nameA}; red: closer in {nameB}. Rings mark the top switch pairs. Click a cell
+                        to select the pair; it is followed in 3D and in the Contacts tab.
                       </div>
-                      {local.length ? (
+                    </div>
+                  )}
+                  {section === 'switch' && (
+                    <div className="mdc-pair">
+                      <div className="mdc-col">
                         <table className="mdc-table">
                           <thead>
                             <tr>
-                              <th>Residue</th>
+                              <th>Switch pair</th>
                               <th>{nameA}</th>
                               <th>{nameB}</th>
-                              <th>Divergence</th>
+                              <th>Change</th>
+                              <th title="Share of this distance's variance that is between the two conformers">
+                                Between share
+                              </th>
+                              <th title="In contact in one conformer and not in the other">Contact switch</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {local.map((l) => (
+                            {compare.pairs.map((p) => (
                               <tr
-                                key={l.residue}
+                                key={`${p.i}-${p.j}`}
+                                className={
+                                  selected && selected.i === p.i && selected.j === p.j ? 'mdc-active' : undefined
+                                }
                                 onClick={() => {
-                                  const i = toActive(l.residue);
-                                  if (i >= 0) session.focus([i]);
+                                  const i = toActive(p.i),
+                                    j = toActive(p.j);
+                                  if (i >= 0 && j >= 0) {
+                                    void session.selectPair({ i, j });
+                                    session.focus([i, j]);
+                                  }
                                 }}
-                                onMouseEnter={() => session.highlight([toActive(l.residue)].filter((x) => x >= 0))}
+                                onMouseEnter={() =>
+                                  session.highlight([toActive(p.i), toActive(p.j)].filter((x) => x >= 0))
+                                }
                                 onMouseLeave={() => session.highlight(undefined)}
                               >
-                                <td>{label(l.residue)}</td>
                                 <td>
-                                  {l.letterA} ({(l.shareA * 100).toFixed(0)}%)
+                                  {label(p.i)} – {label(p.j)}
                                 </td>
                                 <td>
-                                  {l.letterB} ({(l.shareB * 100).toFixed(0)}%)
+                                  {p.meanA.toFixed(2)} ± {p.stdA.toFixed(2)}
                                 </td>
-                                <td>{l.divergence.toFixed(2)}</td>
+                                <td>
+                                  {p.meanB.toFixed(2)} ± {p.stdB.toFixed(2)}
+                                </td>
+                                <td>{p.delta.toFixed(2)} nm</td>
+                                <td>{p.betweenShare.toFixed(2)}</td>
+                                <td>{p.contactSwitch ? 'yes' : '–'}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
-                      ) : (
-                        <div className="mdc-muted">
-                          No residue changes its 3Di letter between the two: the difference is rigid-body.
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="mdc-note">
-                      Local switch residues need 3Di letters for every simulation compared (the server makes them when
-                      it has Foldseek).
+                      </div>
+                      <div className="mdc-col">
+                        {local ? (
+                          <>
+                            <div
+                              className="mdc-note"
+                              title="Residues whose structural letter differs between the two: a change of the local fold, where the switch pairs also catch rigid parts moving against each other. Divergence 1 means no letter in common."
+                            >
+                              <b>Local switch residues (3Di)</b>
+                            </div>
+                            {local.length ? (
+                              <table className="mdc-table">
+                                <thead>
+                                  <tr>
+                                    <th>Residue</th>
+                                    <th>{nameA}</th>
+                                    <th>{nameB}</th>
+                                    <th>Divergence</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {local.map((l) => (
+                                    <tr
+                                      key={l.residue}
+                                      onClick={() => {
+                                        const i = toActive(l.residue);
+                                        if (i >= 0) session.focus([i]);
+                                      }}
+                                      onMouseEnter={() =>
+                                        session.highlight([toActive(l.residue)].filter((x) => x >= 0))
+                                      }
+                                      onMouseLeave={() => session.highlight(undefined)}
+                                    >
+                                      <td>{label(l.residue)}</td>
+                                      <td>
+                                        {l.letterA} ({(l.shareA * 100).toFixed(0)}%)
+                                      </td>
+                                      <td>
+                                        {l.letterB} ({(l.shareB * 100).toFixed(0)}%)
+                                      </td>
+                                      <td>{l.divergence.toFixed(2)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <div className="mdc-muted">
+                                No residue changes its 3Di letter between the two: the difference is rigid-body.
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="mdc-note">
+                            Local switch residues need 3Di letters for every simulation compared (the server makes them
+                            when it has Foldseek).
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </>

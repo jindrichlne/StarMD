@@ -280,16 +280,17 @@ export function AlignTab({ session }: { session: MdContactsSession }) {
               session.highlight([best]);
             }}
           />
-          <div className="mdc-note">
+          <div
+            className="mdc-note"
+            title="The numbers follow the frame slider and playback; the grey structure in 3D is refitted when the frame rests. The fit uses all aligned Cα atoms, so a moving domain shows as displacement on both sides of its hinge."
+          >
             Furthest apart:{' '}
             {Array.from(fit.displacement, (v, k) => ({ v, k }))
               .sort((a, b) => b.v - a.v)
               .slice(0, 6)
               .map(({ v, k }) => `${residueLabel(active.data.residues[alignment.pairs[2 * k]])} (${v.toFixed(2)} nm)`)
               .join(', ')}
-            . The numbers follow the frame slider and playback; the grey structure in 3D is refitted when the frame
-            rests. The fit uses all aligned Cα atoms, so a moving domain shows as displacement on both sides of its
-            hinge.
+            .
           </div>
         </>
       )}

@@ -72,12 +72,13 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  container-type: inline-size;
 }
 .mdc-tab {
-  padding: 12px;
+  padding: 8px 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 .mdc-empty {
   padding: 40px 20px;
@@ -243,10 +244,10 @@
   background: var(--mdc-surface);
   border: 1px solid var(--mdc-line);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 .mdc-card-head {
@@ -419,7 +420,8 @@
   display: grid;
   grid-template-columns: 34px 1fr;
   grid-template-rows: auto 18px;
-  max-width: 620px;
+  /* never taller than the room under the header, so the map and its legend fit one screen */
+  max-width: min(620px, max(240px, calc(100vh - var(--mdc-map-reserve, 395px))));
   margin: 0 auto;
 }
 .mdc-heatmap-plot {
@@ -670,7 +672,7 @@
   box-shadow: 0 0 0 1px #fff;
 }
 .mdc-scatter {
-  max-width: 420px;
+  max-width: min(520px, max(240px, calc(100vh - 340px)));
   margin: 0 auto;
   width: 100%;
 }
@@ -767,4 +769,117 @@
   margin-left: -0.75px;
   background: #0b0b0b;
   pointer-events: none;
+}
+
+/* sections inside a tab, and layouts that use the width instead of the height */
+.mdc-subnav {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  flex-wrap: wrap;
+  margin: -8px -10px 0;
+  padding: 6px 10px;
+  background: var(--mdc-plane);
+  border-bottom: 1px solid var(--mdc-line);
+  font-size: 12px;
+}
+.mdc-seg {
+  display: inline-flex;
+  border: 1px solid var(--mdc-line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+.mdc-seg button {
+  border: 0;
+  border-right: 1px solid var(--mdc-line);
+  background: none;
+  font: inherit;
+  color: var(--mdc-ink-2);
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mdc-seg button:last-child {
+  border-right: 0;
+}
+.mdc-seg button:hover {
+  color: var(--mdc-ink);
+}
+.mdc-seg .mdc-seg-on {
+  background: var(--mdc-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.mdc-seg .mdc-seg-on:hover {
+  color: #fff;
+}
+.mdc-help {
+  font-size: 12px;
+  color: var(--mdc-ink-2);
+}
+.mdc-help summary {
+  cursor: pointer;
+  width: fit-content;
+  color: #1c5cab;
+}
+.mdc-help > div {
+  margin-top: 4px;
+}
+.mdc-plots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 8px;
+}
+.mdc-pair,
+.mdc-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+@container (min-width: 860px) {
+  .mdc-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.mdc-header {
+  padding: 4px 10px 4px;
+}
+.mdc-timeline {
+  margin-top: 2px;
+}
+.mdc-timeline input[type="range"] {
+  margin: 2px 0 0;
+}
+.mdc-card .mdc-heatmap-grid {
+  --mdc-map-reserve: 430px;
+}
+.mdc-card .mdc-heatmap {
+  border: 0;
+  padding: 0;
+}
+.mdc-pairline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  background: var(--mdc-surface);
+  border: 1px solid var(--mdc-line);
+  border-radius: 8px;
+  padding: 4px 10px;
+  color: var(--mdc-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.mdc-pairline b {
+  color: var(--mdc-ink);
+}
+.mdc-pairline .mdc-row {
+  margin-left: auto;
 }

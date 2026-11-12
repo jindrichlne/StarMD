@@ -7,7 +7,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { frameDistances, pairSeries, residueKey, residueLabel } from '../analysis.js';
 import type { MdContactsSession, Simulation } from '../session.js';
-import { ns, shortGroup, simColor, timesNs, useSubject } from './common.js';
+import { ns, Sections, shortGroup, simColor, timesNs, useSection, useSubject } from './common.js';
 import { Heatmap, type MapLayer } from './heatmap.js';
 import { LinePlot, type Series } from './plot.js';
 import { SequenceView } from './sequence.js';
@@ -157,6 +157,7 @@ export function ContactsTab({ session }: { session: MdContactsSession }) {
     return series;
   }, [sim, pair, revision, session]);
 
+  const [section, setSection] = useSection('contacts', ['map', 'sequence', 'pair'] as const);
   if (!sim || !stats) return <div className="mdc-empty">Load a simulation in the Data tab to see its contact map.</div>;
 
   const options: [LayerKind, string][] = [
@@ -181,126 +182,173 @@ export function ContactsTab({ session }: { session: MdContactsSession }) {
 
   return (
     <div className="mdc-tab">
-      <div className="mdc-controls">
-        <label>
-          <span>◥ Upper triangle</span>
-          <select value={up} onChange={(e) => setUpper(e.target.value as LayerKind)}>
-            {options.map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>◣ Lower triangle</span>
-          <select value={lo} onChange={(e) => setLower(e.target.value as LayerKind)}>
-            {options.map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-        {summary && summary.sims.length > 1 && summary.sims.includes(sim) && (
-          <label>
-            <span>Statistics over</span>
-            <select value={scope} onChange={(e) => setScope(e.target.value as 'replica' | 'group')}>
-              <option value="replica">this replica</option>
-              <option value="group">all {summary.sims.length} replicas</option>
-            </select>
-          </label>
-        )}
-        <label>
-          <span>Distance scale, to {dmax.toFixed(1)} nm</span>
-          <input
-            type="range"
-            min={1}
-            max={8}
-            step={0.5}
-            value={dmax}
-            onChange={(e) => setDmax(Number(e.target.value))}
-          />
-        </label>
-        <label>
-          <span>Std / difference scale, {drange.toFixed(2)} nm</span>
-          <input
-            type="range"
-            min={0.1}
-            max={2}
-            step={0.05}
-            value={drange}
-            onChange={(e) => setDrange(Number(e.target.value))}
-          />
-        </label>
-      </div>
+      <Sections
+        label="Contacts sections"
+        options={[
+          ['map', 'Contact map'],
+          ['sequence', 'Sequence'],
+          ['pair', 'Pair over time'],
+        ]}
+        value={section}
+        onChange={setSection}
+      >
+        <span className="mdc-muted">
+          {n} residues · Cα–Cα · {stats.count} frames
+          {settings.skipPs > 0 ? ` (first ${ns(settings.skipPs)} ns left out)` : ''}
+        </span>
+      </Sections>
+      <div className="mdc-col">
+        <div className="mdc-col">
+          {section === 'map' && (
+            <>
+              <div className="mdc-controls">
+                <label>
+                  <span>◥ Upper triangle</span>
+                  <select value={up} onChange={(e) => setUpper(e.target.value as LayerKind)}>
+                    {options.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>◣ Lower triangle</span>
+                  <select value={lo} onChange={(e) => setLower(e.target.value as LayerKind)}>
+                    {options.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {summary && summary.sims.length > 1 && summary.sims.includes(sim) && (
+                  <label>
+                    <span>Statistics over</span>
+                    <select value={scope} onChange={(e) => setScope(e.target.value as 'replica' | 'group')}>
+                      <option value="replica">this replica</option>
+                      <option value="group">all {summary.sims.length} replicas</option>
+                    </select>
+                  </label>
+                )}
+                <label>
+                  <span>Distance scale, to {dmax.toFixed(1)} nm</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={8}
+                    step={0.5}
+                    value={dmax}
+                    onChange={(e) => setDmax(Number(e.target.value))}
+                  />
+                </label>
+                <label>
+                  <span>Std / difference scale, {drange.toFixed(2)} nm</span>
+                  <input
+                    type="range"
+                    min={0.1}
+                    max={2}
+                    step={0.05}
+                    value={drange}
+                    onChange={(e) => setDrange(Number(e.target.value))}
+                  />
+                </label>
+              </div>
 
-      <Heatmap
-        n={n}
-        upper={upperLayer}
-        lower={lowerLayer}
-        label={label}
-        tick={tick}
-        selected={pair && pair.j < n ? pair : undefined}
-        onHover={(p) => session.highlight(p ? [p.i, p.j] : undefined)}
-        onSelect={(p) => void session.selectPair(p)}
-      />
-      <div className="mdc-note">
-        {n} residues, Cα–Cα distances, {stats.count} frames in the statistics
-        {settings.skipPs > 0 ? ` (first ${ns(settings.skipPs)} ns left out)` : ''}. Hover the map to highlight a pair in
-        3D, click to follow its distance.
-      </div>
-
-      <SequenceView session={session} sim={sim} frameMap={frameMap!} startMap={startMap!} stats={stats} />
-
-      {pair && pairPlot && k >= 0 ? (
-        <div className="mdc-card">
-          <div className="mdc-card-head">
-            <span>
-              <b>{label(pair.i)}</b> – <b>{label(pair.j)}</b>
-            </span>
-            <span className="mdc-row">
-              <button type="button" className="mdc-btn" onClick={() => session.focus([pair.i, pair.j])}>
-                Focus in 3D
-              </button>
-              <button type="button" className="mdc-btn" onClick={() => void session.selectPair(undefined)}>
-                Clear
-              </button>
-            </span>
-          </div>
-          <div className="mdc-stats">
-            <span>
-              now <b>{frameMap![k].toFixed(2)} nm</b>
-            </span>
-            <span>
-              mean <b>{stats.mean[k].toFixed(2)}</b> ± {stats.std[k].toFixed(2)} nm
-            </span>
-            <span>
-              in contact <b>{(stats.contact[k] * 100).toFixed(0)}%</b> of the time
-            </span>
-            {sim.gmxMean && (
+              <Heatmap
+                n={n}
+                upper={upperLayer}
+                lower={lowerLayer}
+                label={label}
+                tick={tick}
+                selected={pair && pair.j < n ? pair : undefined}
+                onHover={(p) => session.highlight(p ? [p.i, p.j] : undefined)}
+                onSelect={(p) => void session.selectPair(p)}
+              />
+            </>
+          )}
+          {section === 'sequence' && (
+            <SequenceView session={session} sim={sim} frameMap={frameMap!} startMap={startMap!} stats={stats} />
+          )}
+        </div>
+        <div className="mdc-col">
+          {section !== 'pair' && pair && k >= 0 && (
+            <div className="mdc-pairline">
               <span>
-                gmx mdmat <b>{sim.gmxMean[k].toFixed(2)} nm</b>
+                <b>{label(pair.i)}</b> – <b>{label(pair.j)}</b>
               </span>
-            )}
-          </div>
-          <LinePlot
-            title="Distance over time"
-            series={pairPlot}
-            xLabel="ns"
-            yUnit="nm"
-            cursor={sim.data.times[frame] / 1000}
-            shadeTo={settings.skipPs > 0 ? (sim.data.times[0] + settings.skipPs) / 1000 : undefined}
-            guides={[{ y: settings.cutoff, label: `contact < ${settings.cutoff} nm` }]}
-            xFormat={(x) => x.toFixed(x < 10 ? 1 : 0)}
-            onPick={(_, nearest) => nearest && session.setFrame(nearest.index)}
-          />
+              <span>
+                now <b>{frameMap![k].toFixed(2)} nm</b>
+              </span>
+              <span>
+                mean <b>{stats.mean[k].toFixed(2)}</b> ± {stats.std[k].toFixed(2)} nm
+              </span>
+              <span>
+                in contact <b>{(stats.contact[k] * 100).toFixed(0)}%</b>
+              </span>
+              <span className="mdc-row">
+                <button type="button" className="mdc-btn" onClick={() => setSection('pair')}>
+                  Plot over time
+                </button>
+                <button type="button" className="mdc-btn" onClick={() => void session.selectPair(undefined)}>
+                  Clear
+                </button>
+              </span>
+            </div>
+          )}
+          {section === 'pair' &&
+            (pair && pairPlot && k >= 0 ? (
+              <div className="mdc-card">
+                <div className="mdc-card-head">
+                  <span>
+                    <b>{label(pair.i)}</b> – <b>{label(pair.j)}</b>
+                  </span>
+                  <span className="mdc-row">
+                    <button type="button" className="mdc-btn" onClick={() => session.focus([pair.i, pair.j])}>
+                      Focus in 3D
+                    </button>
+                    <button type="button" className="mdc-btn" onClick={() => void session.selectPair(undefined)}>
+                      Clear
+                    </button>
+                  </span>
+                </div>
+                <div className="mdc-stats">
+                  <span>
+                    now <b>{frameMap![k].toFixed(2)} nm</b>
+                  </span>
+                  <span>
+                    mean <b>{stats.mean[k].toFixed(2)}</b> ± {stats.std[k].toFixed(2)} nm
+                  </span>
+                  <span>
+                    in contact <b>{(stats.contact[k] * 100).toFixed(0)}%</b> of the time
+                  </span>
+                  {sim.gmxMean && (
+                    <span>
+                      gmx mdmat <b>{sim.gmxMean[k].toFixed(2)} nm</b>
+                    </span>
+                  )}
+                </div>
+                <LinePlot
+                  title="Distance over time"
+                  height={260}
+                  series={pairPlot}
+                  xLabel="ns"
+                  yUnit="nm"
+                  cursor={sim.data.times[frame] / 1000}
+                  shadeTo={settings.skipPs > 0 ? (sim.data.times[0] + settings.skipPs) / 1000 : undefined}
+                  guides={[{ y: settings.cutoff, label: `contact < ${settings.cutoff} nm` }]}
+                  xFormat={(x) => x.toFixed(x < 10 ? 1 : 0)}
+                  onPick={(_, nearest) => nearest && session.setFrame(nearest.index)}
+                />
+              </div>
+            ) : (
+              <div className="mdc-note">
+                No pair selected. Click a cell of the contact map, or two residues in the sequence, to follow that
+                distance.
+              </div>
+            ))}
         </div>
-      ) : (
-        <div className="mdc-card mdc-muted">
-          No pair selected. Click a cell of the map to plot that distance over time.
-        </div>
-      )}
+      </div>
     </div>
   );
 }

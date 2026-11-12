@@ -29,6 +29,9 @@ async function init() {
   const session = new MdContactsSession(viewer.plugin);
   // served by the companion server: same origin; opened as a file: prepared files only
   const server = location.protocol.startsWith('http') ? new MdServer('') : undefined;
+  // tells the server this page is open: it deletes its cache once the last page is closed
+  const alive = server ? new EventSource('/api/alive') : undefined;
+  window.addEventListener('pagehide', () => alive?.close());
   createRoot(document.getElementById('panel')!).render(<MdContactsPanel session={session} server={server} />);
 
   // draggable split between the 3D view and the panel

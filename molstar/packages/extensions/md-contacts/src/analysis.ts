@@ -408,8 +408,12 @@ function slope(x: ArrayLike<number>, y: ArrayLike<number>, from: number, to: num
   return sxx > 0 ? sxy / sxx : 0;
 }
 
-/** `short`: too few frames to judge */
-export type StabilityVerdict = 'holds' | 'drifting' | 'departed' | 'short';
+/**
+ * Two questions, kept apart: how far from the start the run ended up, and whether it is still moving.
+ * `holds`: near the start and flat. `shifted`: flat now, but settled away from the start (it moved early on).
+ * `drifting`: still moving over the second half. `departed`: the starting shape is lost. `short`: too few frames.
+ */
+export type StabilityVerdict = 'holds' | 'shifted' | 'drifting' | 'departed' | 'short';
 
 /** fewer analysed frames than this cannot be judged */
 export const MinFramesForVerdict = 20;
@@ -417,6 +421,8 @@ export const MinFramesForVerdict = 20;
 export interface StabilityThresholds {
   /** nm: dRMSD drift over the second half of the run below this counts as a plateau */
   drift: number;
+  /** nm: late dRMSD to the start above this counts as having settled somewhere else than the start */
+  shifted: number;
   /** nm: late dRMSD to the start above this counts as having left the starting shape */
   departed: number;
   /** native-contact fraction a held shape keeps */
@@ -427,6 +433,7 @@ export interface StabilityThresholds {
 
 export const DefaultStabilityThresholds: StabilityThresholds = {
   drift: 0.03,
+  shifted: 0.2,
   departed: 0.4,
   contactsHeld: 0.85,
   contactsLost: 0.7,
@@ -498,11 +505,21 @@ export function evaluateStability(
     verdict = 'departed';
     if (drmsdLate > th.departed) reasons.push(`late dRMSD to the start ${drmsdLate.toFixed(2)} nm > ${th.departed} nm`);
     if (qLate < th.contactsLost) reasons.push(`only ${(qLate * 100).toFixed(0)}% of the starting contacts kept`);
-  } else if (Math.abs(drift) > th.drift || blockShift > th.drift || qLate < th.contactsHeld) {
+  } else if (Math.abs(drift) > th.drift || blockShift > th.drift) {
     verdict = 'drifting';
     if (Math.abs(drift) > th.drift)
       reasons.push(`dRMSD still moving: ${drift >= 0 ? '+' : ''}${drift.toFixed(3)} nm over the second half`);
     if (blockShift > th.drift) reasons.push(`last two quarters differ by ${blockShift.toFixed(3)} nm`);
+    if (drmsdLate > th.shifted)
+      reasons.push(`already ${drmsdLate.toFixed(2)} nm from the start (more than ${th.shifted} nm)`);
+    if (qLate < th.contactsHeld) reasons.push(`${(qLate * 100).toFixed(0)}% of the starting contacts kept`);
+  } else if (drmsdLate > th.shifted || qLate < th.contactsHeld) {
+    // flat now, but not where it started: it moved early and settled; a flat second half alone is not "holds"
+    verdict = 'shifted';
+    if (drmsdLate > th.shifted)
+      reasons.push(
+        `settled ${drmsdLate.toFixed(2)} nm dRMSD from the start (more than ${th.shifted} nm), flat over the second half`,
+      );
     if (qLate < th.contactsHeld) reasons.push(`${(qLate * 100).toFixed(0)}% of the starting contacts kept`);
   } else {
     reasons.push(
@@ -671,14 +688,31 @@ export interface ConformerOptions {
   framesPerTrajectory: number;
   /** residues used for the fingerprint (more is slower; the rest are skipped evenly) */
   maxResidues: number;
-  /** 0: automatic from the merge heights */
+  /** 0: automatic (every split of the tree that has a gap between its two groups) */
   nClusters: number;
   /** ps skipped at the start of every trajectory */
   skipPs: number;
   /** contact cutoff of the per-conformer maps, nm */
   cutoff: number;
-  /** a merge this many times higher than the next one separates conformers (automatic mode) */
-  gapRatio: number;
+  /**
+   * Automatic mode: a split of the tree separates two conformers when few frames lie between the two groups. This is
+   * the most frames allowed half-way between them, relative to the frames at the (less populated) group itself.
+   */
+  maxDip: number;
+  /**
+   * Automatic mode, the scale of a conformer: two conformers are at least this many times further apart than the
+   * structure moves from one sampled stretch of a trajectory to the next (the median of that, `ConformerResult.step`).
+   * A floppy protein thus needs a bigger change than a stiff one.
+   */
+  stepFactor: number;
+  /** automatic mode: and never closer than this; nm of dRMSD (3Di: 0.6 of it, as share of residues) */
+  minSeparation: number;
+  /** automatic mode: a group smaller than this share of one trajectory's sampled frames is not a conformer of its own */
+  minShare: number;
+  /** automatic mode: a group without a gap to a bigger one is in transit to it when it is below this share of both */
+  transitShare: number;
+  /** automatic mode: never more conformers than this */
+  maxClusters: number;
   /** what frames are compared by: their Cα distance maps (dRMSD), or their 3Di structural letters (share that differ) */
   fingerprint: 'distance' | '3di';
 }
@@ -689,7 +723,12 @@ export const DefaultConformerOptions: ConformerOptions = {
   nClusters: 0,
   skipPs: 0,
   cutoff: 0.8,
-  gapRatio: 1.6,
+  maxDip: 0.5,
+  stepFactor: 2.25,
+  minSeparation: 0.05,
+  minShare: 0.2,
+  transitShare: 0.2,
+  maxClusters: 8,
   fingerprint: 'distance',
 };
 
@@ -708,8 +747,18 @@ export interface Conformer {
 
 export interface ConformerResult {
   options: ConformerOptions;
-  /** how many conformers the merge heights suggest */
+  /** how many conformers the automatic search finds (also reported when a number was asked for) */
   suggested: number;
+  /** the splits of the tree the automatic search looked at, from the top down */
+  splits: SplitTest[];
+  /** median distance between one sampled stretch of a trajectory and the next: how much the structure moves anyway */
+  step: number;
+  /** the smallest distance between two groups that counts as two conformers (automatic mode) */
+  scale: number;
+  /** share of the sampled frames on the way between conformers (no gap to where they lead): not a conformer */
+  transit: number;
+  /** how many conformers the automatic search finds at a finer and at a coarser scale: how firm `suggested` is */
+  nearby: { scale: number; count: number }[];
   /** highest dendrogram merges, nm, largest first */
   merges: number[];
   conformers: Conformer[];
@@ -721,10 +770,35 @@ export interface ConformerResult {
   betweenDrmsd: Float32Array;
   /** the top of the clustering tree, for an icicle plot: `tree[0]` is the root */
   tree: TreeNode[];
-  /** the merge height at which the tree was cut into the conformers (between the last merge kept apart and the next) */
-  cutHeight: number;
+  /**
+   * the merge height at which the tree was cut into the conformers (between the last merge kept apart and the next);
+   * undefined when the automatic search kept splits at different heights
+   */
+  cutHeight?: number;
   /** what the merge heights measure: nm of dRMSD, or the share of residues whose 3Di letter differs */
   unit: 'nm' | 'letters';
+}
+
+/** Two groups of sampled frames, as the automatic search judged them. */
+export interface SplitTest {
+  /** sampled frames in the two groups */
+  sizes: [number, number];
+  /** distance between the two group centres: nm of dRMSD, or the share of residues with another 3Di letter */
+  separation: number;
+  /**
+   * frames at the emptiest place between the groups relative to frames at the densest place of the less populated
+   * group: 0 a clean gap, 1 a continuum
+   */
+  dip: number;
+  /**
+   * - `apart`: two conformers (far enough apart, with a gap)
+   * - `joined`: far enough apart, but frames fill the space between: one motion, counted as one conformer
+   * - `transit`: as `joined`, and the first group is so thin that its frames are on the way to the second
+   * - `close`: closer than the scale of a conformer, not looked at further
+   */
+  outcome: 'apart' | 'joined' | 'transit' | 'close';
+  /** `outcome === 'apart'` */
+  accepted: boolean;
 }
 
 /** A cluster of the tree: it exists between its own merge height (where its two children join) and its parent's. */
@@ -943,6 +1017,263 @@ function averageLinkage(dist: Float32Array, n: number) {
   return merges;
 }
 
+interface LinkNode {
+  members: number[];
+  height: number;
+  left?: LinkNode;
+  right?: LinkNode;
+}
+
+/**
+ * Is there a gap between two groups of sampled frames? Every frame is projected on the line between the two group
+ * centres (0: at the first centre, 1: at the second), from the pair distances alone. Separate conformers leave part of
+ * the middle of that line nearly empty; one continuous motion cut in two fills it as densely as the groups themselves.
+ *
+ * A frame is left out of its own group's centre: in many dimensions any two groups of noise look separated along the
+ * line between their own means, because every frame pulls its centre towards itself.
+ *
+ * The densities are counts in a window sliding along the line: of each group where it is densest (a group made of
+ * several sub-states is not dense at its centre), and of all frames where the middle is emptiest. One frame is added
+ * to both, so a handful of frames is not taken for a gap.
+ */
+function splitTest(a: number[], b: number[], sq: (i: number, j: number) => number): SplitTest {
+  const na = a.length,
+    nb = b.length;
+  const rowA = new Float64Array(na + nb),
+    rowB = new Float64Array(na + nb);
+  const all = a.concat(b);
+  let sumA = 0,
+    sumB = 0,
+    cross = 0;
+  for (let p = 0; p < all.length; p++) {
+    const i = all[p];
+    let ra = 0,
+      rb = 0;
+    for (let q = 0; q < na; q++) ra += sq(i, a[q]);
+    for (let q = 0; q < nb; q++) rb += sq(i, b[q]);
+    rowA[p] = ra;
+    rowB[p] = rb;
+    if (p < na) {
+      sumA += ra;
+      cross += rb;
+    } else sumB += rb;
+  }
+  // squared radius of a group: half its mean squared pair distance
+  const vA = sumA / (2 * na * na),
+    vB = sumB / (2 * nb * nb);
+  const d2 = cross / (na * nb) - vA - vB;
+  const result: SplitTest = {
+    sizes: [na, nb],
+    separation: Math.sqrt(Math.max(0, d2)),
+    dip: 1,
+    outcome: 'joined',
+    accepted: false,
+  };
+  if (!(d2 > 1e-12) || na < 2 || nb < 2) return result;
+  const t = new Float64Array(na + nb);
+  for (let p = 0; p < all.length; p++) {
+    let da: number, db: number, dd: number;
+    if (p < na) {
+      // centre of the first group without this frame
+      const v = (sumA - 2 * rowA[p]) / (2 * (na - 1) * (na - 1));
+      da = rowA[p] / (na - 1) - v;
+      db = rowB[p] / nb - vB;
+      dd = (cross - rowB[p]) / ((na - 1) * nb) - v - vB;
+    } else {
+      const v = (sumB - 2 * rowB[p]) / (2 * (nb - 1) * (nb - 1));
+      da = rowA[p] / na - vA;
+      db = rowB[p] / (nb - 1) - v;
+      dd = (cross - rowA[p]) / (na * (nb - 1)) - vA - v;
+    }
+    t[p] = dd > 1e-12 ? (da - db + dd) / (2 * dd) : 0.5;
+  }
+  const W = 0.15;
+  // most frames of a (sorted) group within any window
+  const peak = (ts: Float64Array) => {
+    ts.sort();
+    let best = 0;
+    for (let lo = 0, hi = 0; hi < ts.length; hi++) {
+      while (ts[hi] - ts[lo] > 2 * W) lo++;
+      best = Math.max(best, hi - lo + 1);
+    }
+    return best;
+  };
+  let valley = Infinity;
+  for (let c = 0.3; c < 0.701; c += 0.05) {
+    let count = 0;
+    for (let p = 0; p < t.length; p++) if (Math.abs(t[p] - c) <= W) count++;
+    valley = Math.min(valley, count);
+  }
+  result.dip = (valley + 1) / (Math.min(peak(t.slice(0, na)), peak(t.slice(na))) + 1);
+  return result;
+}
+
+/**
+ * The automatic conformers: groups of sampled frames that are, pair by pair, far enough apart (`minSeparation`) with a
+ * gap between them (`splitTest`), and populated enough (`minSize`).
+ *
+ * Proteins move on every scale: below any two shapes there are smaller sub-states, also separated by gaps, down to
+ * single side chains. `minSeparation` is the scale asked about. So, in two steps:
+ *
+ * 1. Pieces: the clustering tree is opened from the top down to groups that cannot be halved into two of `minSize`.
+ *    (Judging the splits of the tree itself is not enough: one side of a high split is a mixture of shapes, whose
+ *    centre is closer to the other side than any of the shapes are, and one unclear split would hide all below it.)
+ * 2. The two closest pieces that are not two conformers are joined, again and again, until every pair left is far
+ *    enough apart and has a gap. Pieces closer than the scale are one conformer. Pieces further apart but without a
+ *    gap are one motion; when one of them is much smaller, its frames are in `transit` instead (all runs start in one
+ *    shape and relax into others) and join whatever conformer each is nearest to.
+ */
+function autoClusters(
+  merges: { height: number; members: number[][] }[],
+  n: number,
+  sq: (i: number, j: number) => number,
+  o: { maxDip: number; minSeparation: number; minSize: number; maxClusters: number; transitShare: number },
+) {
+  const byFirst = new Map<number, LinkNode>();
+  let root: LinkNode = { members: [0], height: 0 };
+  for (const m of merges) {
+    const [a, b] = m.members;
+    const left = byFirst.get(a[0]) ?? { members: a, height: 0 },
+      right = byFirst.get(b[0]) ?? { members: b, height: 0 };
+    root = { members: a.concat(b), height: m.height, left, right };
+    byFirst.set(a[0], root);
+    byFirst.delete(b[0]);
+  }
+  interface Group {
+    id: number;
+    members: number[];
+  }
+  const strays: number[] = [],
+    splits: SplitTest[] = [];
+  const groups: Group[] = [];
+  let nextId = 0;
+  const stack = [root];
+  while (stack.length) {
+    let node = stack.pop()!;
+    for (;;) {
+      const { left, right } = node;
+      const [small, big] =
+        left && right ? (left.members.length < right.members.length ? [left, right] : [right, left]) : [];
+      if (!small || !big || big.members.length < o.minSize) {
+        groups.push({ id: nextId++, members: node.members });
+        break;
+      }
+      if (small.members.length >= o.minSize) {
+        stack.push(right!, left!);
+        break;
+      }
+      // strays: peel them off and look at the rest
+      for (const i of small.members) strays.push(i);
+      node = big;
+    }
+  }
+
+  // sums of squared distances between the pieces: they add up when pieces are joined, and give the centre distances
+  let cross = groups.map((x) =>
+    groups.map((y) => {
+      let sum = 0;
+      for (const i of x.members) for (const j of y.members) sum += sq(i, j);
+      return sum;
+    }),
+  );
+  const separation2 = (a: number, b: number) => {
+    const na = groups[a].members.length,
+      nb = groups[b].members.length;
+    return cross[a][b] / (na * nb) - cross[a][a] / (2 * na * na) - cross[b][b] / (2 * nb * nb);
+  };
+  const tested = new Map<string, SplitTest>();
+  const testOf = (x: Group, y: Group) => {
+    const key = `${x.id} ${y.id}`;
+    let test = tested.get(key);
+    if (!test) {
+      test = splitTest(x.members, y.members, sq);
+      tested.set(key, test);
+    }
+    return test;
+  };
+  const remove = (a: number) => {
+    groups.splice(a, 1);
+    cross.splice(a, 1);
+    for (const row of cross) row.splice(a, 1);
+  };
+  const min2 = o.minSeparation * o.minSeparation;
+  let transit = 0;
+  for (let changed = true; changed && groups.length > 1; ) {
+    changed = false;
+    const pairs: [number, number, number][] = [];
+    for (let a = 0; a < groups.length; a++)
+      for (let b = a + 1; b < groups.length; b++) pairs.push([separation2(a, b), a, b]);
+    pairs.sort((x, y) => x[0] - y[0]);
+    for (const [d2, a, b] of pairs) {
+      // the smaller of the two first
+      const [x, y] = groups[a].members.length <= groups[b].members.length ? [a, b] : [b, a];
+      const far = d2 >= min2;
+      const test = testOf(groups[x], groups[y]);
+      if (far && test.dip <= o.maxDip) continue;
+      const nx = groups[x].members.length,
+        ny = groups[y].members.length;
+      if (far && nx < o.transitShare * (nx + ny)) {
+        test.outcome = 'transit';
+        transit += nx;
+        for (const m of groups[x].members) strays.push(m);
+      } else {
+        test.outcome = far ? 'joined' : 'close';
+        groups[y] = { id: nextId++, members: groups[y].members.concat(groups[x].members) };
+        const cyy = cross[y][y] + cross[x][x] + 2 * cross[x][y];
+        for (let k = 0; k < groups.length; k++) cross[y][k] = cross[k][y] = cross[y][k] + cross[x][k];
+        cross[y][y] = cyy;
+      }
+      remove(x);
+      splits.push(test);
+      changed = true;
+      break;
+    }
+  }
+  // the cap keeps the most populated
+  const order = groups.map((_, i) => i).sort((x, y) => groups[y].members.length - groups[x].members.length);
+  const kept = order.slice(0, o.maxClusters).map((i) => groups[i]);
+  for (const i of order.slice(o.maxClusters)) for (const m of groups[i].members) strays.push(m);
+  cross = [];
+  // every pair left is apart
+  const apart: SplitTest[] = [];
+  for (let i = 0; i < kept.length; i++) {
+    for (let j = i + 1; j < kept.length; j++) {
+      const test = tested.get(`${kept[j].id} ${kept[i].id}`) ?? testOf(kept[i], kept[j]);
+      test.outcome = 'apart';
+      test.accepted = true;
+      apart.push(test);
+    }
+  }
+  apart.sort((x, y) => x.separation - y.separation);
+  const label = new Int32Array(n).fill(-1);
+  kept.forEach((g, c) => {
+    for (const i of g.members) label[i] = c;
+  });
+  // strays and frames in transit join the conformer whose centre they are closest to
+  if (strays.length && kept.length > 1) {
+    const radius = kept.map((g) => {
+      let sum = 0;
+      for (const i of g.members) for (const j of g.members) sum += sq(i, j);
+      return sum / (2 * g.members.length * g.members.length);
+    });
+    for (const i of strays) {
+      let best = 0,
+        bd = Infinity;
+      kept.forEach((g, c) => {
+        let sum = 0;
+        for (const j of g.members) sum += sq(i, j);
+        const d = sum / g.members.length - radius[c];
+        if (d < bd) {
+          bd = d;
+          best = c;
+        }
+      });
+      label[i] = best;
+    }
+  } else for (const i of strays) label[i] = 0;
+  return { label, count: kept.length, splits: apart.concat(splits), transit: kept.length > 1 ? transit / n : 0 };
+}
+
 function cutTree(merges: { height: number; members: number[][] }[], n: number, k: number) {
   const label = new Int32Array(n);
   for (let i = 0; i < n; i++) label[i] = i;
@@ -1070,11 +1401,53 @@ export async function findConformers(
   const ns = sample.length;
   if (ns < 2) throw new Error('Not enough frames to look for conformers.');
 
+  // A sampled frame stands for the stretch of the trajectory around it: its fingerprint is the average over that
+  // stretch (3Di: the most common letter). Conformers live much longer than one frame, thermal noise does not, so this
+  // keeps what tells conformers apart and removes most of what blurs them.
   await tick('Fingerprinting frames', 0);
   const fp = new Float32Array(ns * nPairs);
-  for (let s = 0; s < ns; s++) {
-    const { traj, frame } = sample[s];
-    fill(traj, frame, fp.subarray(s * nPairs, (s + 1) * nPairs));
+  {
+    const MAX_PER_BLOCK = 16;
+    const one = new Float32Array(nPairs);
+    const votes = use3Di ? new Uint16Array(nPairs * 128) : undefined;
+    let s = 0,
+      lastTick = Date.now();
+    for (let ti = 0; ti < trajectories.length; ti++) {
+      const t = trajectories[ti];
+      const avail = t.nFrames - firsts[ti];
+      const count = Math.min(avail, o.framesPerTrajectory);
+      for (let b = 0; b < count; b++, s++) {
+        const centre = sample[s].frame;
+        const half = count > 1 ? (avail - 1) / (count - 1) / 2 : 0;
+        const from = Math.max(firsts[ti], Math.ceil(centre - half)),
+          to = Math.min(t.nFrames - 1, Math.floor(centre + half));
+        const len = Math.max(1, to - from + 1);
+        const take = Math.min(len, MAX_PER_BLOCK);
+        const out = fp.subarray(s * nPairs, (s + 1) * nPairs);
+        if (take === 1) {
+          fill(ti, centre, out);
+          continue;
+        }
+        votes?.fill(0);
+        for (let q = 0; q < take; q++) {
+          const frame = from + Math.round((q * (len - 1)) / (take - 1));
+          fill(ti, frame, one);
+          if (votes) for (let p = 0; p < nPairs; p++) votes[p * 128 + (one[p] & 127)]++;
+          else for (let p = 0; p < nPairs; p++) out[p] += one[p];
+        }
+        if (votes) {
+          for (let p = 0; p < nPairs; p++) {
+            let best = 0;
+            for (let l = 1; l < 128; l++) if (votes[p * 128 + l] > votes[p * 128 + best]) best = l;
+            out[p] = best;
+          }
+        } else for (let p = 0; p < nPairs; p++) out[p] /= take;
+        if (Date.now() - lastTick > 60) {
+          await tick('Fingerprinting frames', s / ns);
+          lastTick = Date.now();
+        }
+      }
+    }
   }
 
   const dist = new Float32Array(ns * ns);
@@ -1105,18 +1478,42 @@ export async function findConformers(
   await tick('Clustering', 1);
   const merges = averageLinkage(dist, ns);
   const heights = merges.map((m) => m.height).reverse();
-  // automatic count: the largest relative gap among the top merges
-  let suggested = 1,
-    bestRatio = o.gapRatio;
-  for (let i = 0; i < Math.min(7, heights.length - 1); i++) {
-    const ratio = heights[i] / Math.max(1e-6, heights[i + 1]);
-    if (ratio > bestRatio) {
-      bestRatio = ratio;
-      suggested = i + 2;
+  // squared distances in the space the fingerprints live in (the share of differing letters already is one)
+  const sq = use3Di ? (i: number, j: number) => dist[i * ns + j] : (i: number, j: number) => dist[i * ns + j] ** 2;
+  // how far the structure moves from one sampled stretch to the next, within a trajectory
+  const steps: number[] = [];
+  for (let a = 1; a < ns; a++) if (sample[a].traj === sample[a - 1].traj) steps.push(dist[a * ns + a - 1]);
+  steps.sort((x, y) => x - y);
+  const step = steps.length ? steps[steps.length >> 1] : 0;
+  const scale = Math.max(use3Di ? o.minSeparation * 0.6 : o.minSeparation, o.stepFactor * step);
+  const search = (at: number) =>
+    autoClusters(merges, ns, sq, {
+      maxDip: o.maxDip,
+      // the share of differing letters is a squared distance: `separation` is its root
+      minSeparation: use3Di ? Math.sqrt(at) : at,
+      minSize: Math.max(8, Math.ceil((ns / trajectories.length) * o.minShare)),
+      maxClusters: o.maxClusters,
+      transitShare: o.transitShare,
+    });
+  const auto = search(scale);
+  const nearby = [0.8, 1.25].map((f) => ({ scale: scale * f, count: search(scale * f).count }));
+  if (use3Di) for (const t of auto.splits) t.separation = t.separation ** 2;
+  const suggested = auto.count;
+  const forced = o.nClusters > 0 && o.nClusters !== suggested;
+  const k = forced ? Math.max(1, Math.min(o.nClusters, ns)) : suggested;
+  const label = forced ? cutTree(merges, ns, k) : auto.label;
+  // one height cuts the tree into the conformers only when they are what a flat cut gives
+  let flat = forced;
+  if (!forced && k > 1) {
+    const cut = cutTree(merges, ns, k);
+    const pairing = new Map<number, number>();
+    flat = true;
+    for (let s = 0; s < ns && flat; s++) {
+      if (!pairing.has(label[s])) pairing.set(label[s], cut[s]);
+      flat = pairing.get(label[s]) === cut[s];
     }
+    flat &&= new Set(pairing.values()).size === k;
   }
-  const k = Math.max(1, Math.min(o.nClusters > 0 ? o.nClusters : suggested, ns));
-  const label = cutTree(merges, ns, k);
 
   // conformer mean fingerprints, medoids
   const centre = new Float32Array(k * nPairs);
@@ -1226,13 +1623,18 @@ export async function findConformers(
     options: o,
     suggested,
     merges: heights.slice(0, 8),
+    splits: auto.splits,
+    step,
+    scale,
+    transit: forced ? 0 : auto.transit,
+    nearby,
     conformers,
     assignment,
     sample: sample.map((ref, s) => ({ ref, conformer: label[s], x: mx[s], y: my[s] })),
     betweenDrmsd,
     tree: buildTree(merges, ns, dist, label, sample, trajectories.length),
     // heights[k - 2] is the last merge kept apart, heights[k - 1] the first one made
-    cutHeight: k > 1 ? (heights[k - 2] + (heights[k - 1] ?? 0)) / 2 : heights[0] * 1.02,
+    cutHeight: k === 1 ? heights[0] * 1.02 : flat ? (heights[k - 2] + (heights[k - 1] ?? 0)) / 2 : undefined,
     unit: use3Di ? 'letters' : 'nm',
   };
 }

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Starts the Mol* MD contacts app: http://localhost:8765/
 #   ./run-md-contacts.sh [simulations folder] [extra server flags, e.g. --port 9000 --gmx /path/to/gmx]
-# Everything it writes stays in this folder (md-contacts-work/ is the GROMACS output cache).
+# Everything it writes stays in this folder (md-contacts-work/ is the GROMACS output cache, deleted when the app tab is closed or the
+# server stops unless --keep-cache is given).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$HERE/MD"

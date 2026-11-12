@@ -10,7 +10,7 @@ import type { TreeNode } from '../analysis.js';
 export interface IcicleProps {
   tree: TreeNode[];
   /** merge height at which the tree was cut into conformers */
-  cutHeight: number;
+  cutHeight?: number;
   /** formats a merge height */
   format: (height: number) => string;
   unitLabel: string;
@@ -93,17 +93,27 @@ export function Icicle({ tree, cutHeight, format, unitLabel, color, selected, to
             </g>
           );
         })}
-        <line
-          x1={PAD.l}
-          x2={W - PAD.r}
-          y1={sy(cutHeight)}
-          y2={sy(cutHeight)}
-          className="mdc-guide"
-          pointerEvents="none"
-        />
-        <text x={W - PAD.r - 3} y={sy(cutHeight) - 3} textAnchor="end" className="mdc-axis-label" pointerEvents="none">
-          cut into conformers
-        </text>
+        {cutHeight !== undefined && (
+          <>
+            <line
+              x1={PAD.l}
+              x2={W - PAD.r}
+              y1={sy(cutHeight)}
+              y2={sy(cutHeight)}
+              className="mdc-guide"
+              pointerEvents="none"
+            />
+            <text
+              x={W - PAD.r - 3}
+              y={sy(cutHeight) - 3}
+              textAnchor="end"
+              className="mdc-axis-label"
+              pointerEvents="none"
+            >
+              cut into conformers
+            </text>
+          </>
+        )}
       </svg>
       <div className="mdc-readout">
         {h ? (

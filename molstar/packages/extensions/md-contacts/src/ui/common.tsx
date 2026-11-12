@@ -4,7 +4,7 @@
  * @author Jindrich Lnenicka
  */
 
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import type { BehaviorSubject } from 'rxjs';
 import { seriesColor } from '../colors.js';
 import type { Simulation } from '../session.js';
@@ -47,4 +47,63 @@ export function timesNs(times: Float32Array) {
     nsCache.set(times, out);
   }
   return out;
+}
+
+const sectionMemory = new Map<string, string>();
+/** Which section of a tab is open; remembered while the page lives, so changing tabs does not reset it. */
+export function useSection<T extends string>(key: string, available: readonly T[]): [T, (v: T) => void] {
+  const [value, set] = useState<string>(sectionMemory.get(key) ?? available[0]);
+  const current = (available as readonly string[]).includes(value) ? (value as T) : available[0];
+  return [
+    current,
+    (v: T) => {
+      sectionMemory.set(key, v);
+      set(v);
+    },
+  ];
+}
+
+/** Second-level navigation inside a tab: one section on screen at a time instead of one long page. */
+export function Sections<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  options: readonly (readonly [T, string])[];
+  value: T;
+  onChange: (v: T) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="mdc-subnav">
+      <div className="mdc-seg" role="tablist" aria-label={label}>
+        {options.map(([id, name]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={id === value}
+            className={id === value ? 'mdc-seg-on' : undefined}
+            onClick={() => onChange(id)}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Explanations that are worth having but not worth the room: closed until asked for. */
+export function Help({ title = 'How to read this', children }: { title?: string; children: ReactNode }) {
+  return (
+    <details className="mdc-help">
+      <summary>{title}</summary>
+      <div>{children}</div>
+    </details>
+  );
 }

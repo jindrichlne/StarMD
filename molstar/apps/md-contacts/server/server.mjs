@@ -11,6 +11,9 @@
  * No dependencies beyond Node. It listens on localhost only and never writes outside its work folder.
  *
  *   node server.mjs --root <folder with simulations> [--work <cache folder>] [--port 8765] [--gmx <gmx binary>]
+ *
+ * The cache is deleted when the last page of the app is closed and when the server stops (Ctrl+C, closed terminal);
+ * --keep-cache keeps it for the next run.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -29,7 +32,7 @@ const arg = (flag, fallback) => {
 };
 if (argv.includes('--help') || argv.includes('-h')) {
   console.log(
-    'Usage: node server.mjs --root <simulations folder> [--work <cache folder>] [--port 8765] [--gmx <binary>] [--app <built app folder>] [--jobs <n>]',
+    'Usage: node server.mjs --root <simulations folder> [--work <cache folder>] [--port 8765] [--gmx <binary>] [--app <built app folder>] [--jobs <n>] [--keep-cache]',
   );
   process.exit(0);
 }
@@ -39,6 +42,7 @@ const work = path.resolve(arg('--work', path.join(process.cwd(), 'md-contacts-wo
 const port = Number(arg('--port', '8765'));
 const appDir = path.resolve(arg('--app', path.join(here, '../build')));
 const maxJobs = Number(arg('--jobs', String(Math.max(1, Math.min(4, Math.floor(os.cpus().length / 2))))));
+const keepCache = argv.includes('--keep-cache');
 fs.mkdirSync(work, { recursive: true });
 
 // GROMACS
@@ -615,6 +619,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, 'http://localhost');
     const p = decodeURIComponent(u.pathname);
+    if (p === '/api/alive') return pageOpened(req, res);
     if (p === '/api/info') {
       return sendJson(res, 200, { root, work, gmx, foldseek, defaults: DEFAULTS, maxJobs });
     }
@@ -659,10 +664,87 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// Closing: stop running tools and delete the cache (only the job folders this server writes, never anything else).
+
+const JOB_DIR = /^[0-9a-f]{12,40}$/;
+function clearCache() {
+  let removed = 0;
+  let entries = [];
+  try {
+    entries = fs.readdirSync(work, { withFileTypes: true });
+  } catch {
+    return removed;
+  }
+  for (const e of entries) {
+    if (!e.isDirectory() || !JOB_DIR.test(e.name)) continue;
+    try {
+      fs.rmSync(path.join(work, e.name), { recursive: true, force: true });
+      removed++;
+    } catch {}
+  }
+  try {
+    fs.rmdirSync(work); // only succeeds when nothing else is left in it
+  } catch {}
+  return removed;
+}
+
+function stopJobs() {
+  queue.length = 0;
+  for (const job of jobs.values()) {
+    try {
+      job.child?.kill('SIGKILL');
+    } catch {}
+  }
+  jobs.clear();
+}
+
+// Open pages hold /api/alive; when the last one is gone (tab closed, not just reloaded) the cache is deleted too.
+const TAB_GRACE_MS = 15000;
+let pages = 0;
+let tabTimer;
+function pageOpened(req, res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-store',
+    Connection: 'keep-alive',
+  });
+  res.write(': connected\n\n');
+  const beat = setInterval(() => res.write(': alive\n\n'), 20000);
+  pages++;
+  clearTimeout(tabTimer);
+  req.on('close', () => {
+    clearInterval(beat);
+    pages--;
+    if (pages > 0 || keepCache || closing) return;
+    clearTimeout(tabTimer);
+    tabTimer = setTimeout(() => {
+      if (pages > 0) return;
+      stopJobs();
+      const removed = clearCache();
+      console.log(`Page closed; deleted ${removed} cached simulation${removed === 1 ? '' : 's'} from ${work}`);
+    }, TAB_GRACE_MS);
+  });
+}
+
+let closing = false;
+function shutdown(signal) {
+  if (closing) return;
+  closing = true;
+  stopJobs();
+  if (keepCache) {
+    console.log(`\nStopped (${signal}); cache kept in ${work}`);
+  } else {
+    const removed = clearCache();
+    console.log(`\nStopped (${signal}); deleted ${removed} cached simulation${removed === 1 ? '' : 's'} from ${work}`);
+  }
+  process.exit(0);
+}
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, () => shutdown(signal));
+
 server.listen(port, '127.0.0.1', () => {
   console.log(`Mol* MD contacts`);
   console.log(`  simulations: ${root}`);
-  console.log(`  work folder: ${work}`);
+  console.log(`  work folder: ${work}${keepCache ? ' (kept on exit)' : ' (deleted on exit; --keep-cache keeps it)'}`);
   console.log(
     `  GROMACS:     ${gmx ? `${gmx.path} (${gmx.version})` : 'not found: only prepared files can be loaded'}`,
     `  Foldseek:    ${foldseek ? `${foldseek.path} (${foldseek.version})` : 'not found: no 3Di letters (--foldseek <binary>)'}`,
