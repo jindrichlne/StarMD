@@ -4,7 +4,6 @@
 #   sbatch --chdir=state1_lumen-open/rep1 --job-name=s1_rep1 run_lumi.sbatch
 # or simply ./submit_lumi.sh for all 6. The run is restartable: resubmitting the same
 # replica skips finished stages and continues an interrupted one from its checkpoint.
-#SBATCH --account=project_<number>
 #SBATCH --partition=small-g
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -14,9 +13,11 @@
 #SBATCH --time=1-00:00:00
 #SBATCH --output=slurm-%x-%j.out
 
-export EBU_USER_PREFIX=/project/project_<number>/EasyBuild
+# Your billing project: export SBATCH_ACCOUNT=project_<number> before sbatch (or pass -A).
+# GROMACS comes from an EasyBuild install: export EBU_USER_PREFIX (where it was built) before sbatch, and GMX_MODULE if your
+# module has another name.
 module load LUMI/25.03 partition/G
-module load GROMACS/2026.0-cpeAMD-25.03-VkFFT-rocm-hip
+module load "${GMX_MODULE:-GROMACS/2026.0-cpeAMD-25.03-VkFFT-rocm-hip}"
 
 set -euo pipefail
 

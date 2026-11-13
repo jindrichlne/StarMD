@@ -40,3 +40,5 @@ build/
 *.tpr
 *.edr
 *.cpt
+# local editor / agent settings
+/.claude/

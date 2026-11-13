@@ -149,6 +149,7 @@ The server uses `--gmx`, `$GMX`, or `gmx` / `gmx_mpi` on the `PATH`. On a machin
 | `.../src/session.ts` | the Mol* side: loading replicas as trajectories, frames, highlights, measurements |
 | `.../src/ui/` | the panel (React): Data, Contacts, Stability, Conformers |
 | `molstar/apps/md-contacts/` | the page, and `server/server.mjs` (no dependencies): scanning, running `gmx`, caching |
+| `scripts/record-gifs.mjs` | records the demo GIFs in `docs/gifs/` (headless Chrome via Playwright, ffmpeg) |
 
 ```bash
 source scripts/env.sh && cd molstar

@@ -46,7 +46,7 @@ Per replica (restartable; finished stages are skipped, interrupted ones continue
 
 ```bash
 cd state1_lumen-open/rep1
-MDRUN_FLAGS="-ntmpi 14" ./run_md.sh                          # this Mac (no OpenMP build)
+MDRUN_FLAGS="-ntmpi 14" ./run_md.sh                          # workstation, GROMACS built without OpenMP
 GMX=gmx_mpi MDRUN_FLAGS="-ntomp 16 -pin on" ./run_md.sh      # cluster CPU
 MDRUN_FLAGS="-ntmpi 1 -nb gpu -pme gpu -bonded gpu -update gpu" ./run_md.sh   # GPU node
 ```
@@ -106,7 +106,7 @@ Replicas share the minimised structure and differ in their velocity / thermostat
 - Smoke test of the whole chain (nvt → npt1–4 → prod, shortened) for both states: all grompp
   with `-maxwarn 0` (only the note on COM removal with position restraints), no LINCS/SETTLE
   warnings, T = 310 K, density ≈ 986 kg m⁻³.
-- Speed on this Mac (M4 Pro, CPU only, `-ntmpi 7`, two runs side by side): ≈ 8 ns/day per
+- Reference speed on a laptop (Apple M4 Pro, CPU only, `-ntmpi 7`, two runs side by side): ≈ 8 ns/day per
   replica at 2 fs, i.e. ~12–13 days per 100 ns replica. Use GPU/HPC for production.
 
 ## Notes

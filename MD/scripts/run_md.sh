@@ -13,8 +13,8 @@
 #
 # Environment:
 #   GMX          gmx binary (default: gmx; e.g. "gmx_mpi" or "srun gmx_mpi")
-#   MDRUN_FLAGS  extra mdrun flags, e.g. "-ntmpi 14" (local GROMACS 2026.3 has no OpenMP,
-#                use thread-MPI ranks), "-ntomp 16 -pin on" on a cluster, or on a GPU node
+#   MDRUN_FLAGS  extra mdrun flags, e.g. "-ntmpi 14" (a GROMACS built without OpenMP needs
+#                thread-MPI ranks), "-ntomp 16 -pin on" on a cluster, or on a GPU node
 #                "-ntmpi 1 -nb gpu -pme gpu -bonded gpu -update gpu"
 #   STAGES       subset/order of stages to run (default: all)
 set -euo pipefail
